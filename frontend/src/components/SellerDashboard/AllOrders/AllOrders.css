@@ -1,0 +1,142 @@
+.all-orders-container {
+   background: #fff;
+   border-radius: 8px;
+   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+   overflow: hidden;
+}
+
+.orders-tabs {
+   display: flex;
+   border-bottom: 1px solid #e5e5e5;
+   background: #fafafa;
+}
+
+.tab-btn {
+   flex: 1;
+   padding: 16px 0;
+   background: none;
+   border: none;
+   border-bottom: 2px solid transparent;
+   font-size: 14px;
+   color: #555;
+   font-weight: 500;
+   cursor: pointer;
+   transition: all 0.2s;
+}
+
+.tab-btn:hover {
+   color: #ee4d2d;
+}
+
+.tab-btn.active {
+   color: #ee4d2d;
+   border-bottom-color: #ee4d2d;
+   background: #fff;
+}
+
+.orders-search-bar {
+   padding: 20px;
+   display: flex;
+   gap: 12px;
+}
+
+.search-input {
+   flex: 1;
+   max-width: 400px;
+   padding: 10px 16px;
+   border: 1px solid #e5e5e5;
+   border-radius: 4px;
+   font-size: 14px;
+   outline: none;
+   transition: border-color 0.2s;
+}
+
+.search-input:focus {
+   border-color: #ee4d2d;
+}
+
+.search-btn {
+   padding: 0 24px;
+   background-color: #ee4d2d;
+   color: #fff;
+   border: none;
+   border-radius: 4px;
+   cursor: pointer;
+   font-weight: 500;
+   transition: opacity 0.2s;
+}
+
+.search-btn:hover {
+   opacity: 0.9;
+}
+
+.orders-table-wrapper {
+   padding: 0 20px 20px;
+   overflow-x: auto;
+}
+
+.orders-table {
+   width: 100%;
+   border-collapse: collapse;
+}
+
+.orders-table th {
+   background: #f6f6f6;
+   padding: 12px;
+   text-align: left;
+   font-size: 14px;
+   color: #333;
+   border-bottom: 1px solid #e5e5e5;
+}
+
+.orders-table td {
+   padding: 16px 12px;
+   border-bottom: 1px solid #e5e5e5;
+   font-size: 14px;
+   color: #555;
+   vertical-align: middle;
+}
+
+.order-id {
+   font-weight: 500;
+   color: #333;
+}
+
+.order-total {
+   color: #ee4d2d;
+   font-weight: 500;
+}
+
+.status-badge {
+   padding: 4px 10px;
+   border-radius: 12px;
+   font-size: 12px;
+   font-weight: 500;
+   display: inline-block;
+}
+
+.status-pending { background: #fff4e5; color: #ff9800; }
+.status-preparing { background: #e3f2fd; color: #2196f3; }
+.status-shipping { background: #e8f5e9; color: #4caf50; }
+.status-delivered { background: #e8f5e9; color: #2e7d32; }
+.status-cancelled { background: #ffebee; color: #f44336; }
+
+.action-btn {
+   background: none;
+   border: 1px solid #ddd;
+   padding: 6px 12px;
+   border-radius: 4px;
+   color: #333;
+   cursor: pointer;
+   transition: background 0.2s;
+}
+
+.action-btn:hover {
+   background: #f6f6f6;
+}
+
+.no-data {
+   text-align: center;
+   padding: 40px;
+   color: #999;
+}

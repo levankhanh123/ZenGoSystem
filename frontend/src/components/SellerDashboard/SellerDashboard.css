@@ -1,0 +1,206 @@
+.dashboard-wrapper {
+  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f2f4f7; /* Soft light grey background */
+  overflow: hidden;
+}
+
+/* Header */
+.dashboard-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.zengo-logo {
+  color: #ee4d2d;
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.header-title {
+  font-size: 18px;
+  color: #333333;
+  border-left: 1px solid #e5e5e5;
+  padding-left: 16px;
+  font-weight: 500;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shop-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #ee4d2d;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.shop-name-display {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* Main Layout */
+.dashboard-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden; /* Prevent body scrolling if sidebar scrolls */
+}
+
+/* Sidebar */
+.dashboard-sidebar {
+  width: 260px;
+  background-color: #ffffff;
+  border-right: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  box-shadow: 1px 0 3px rgba(0,0,0,0.02);
+}
+
+.sidebar-nav {
+  padding: 16px 0;
+}
+
+.menu-group {
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  cursor: pointer;
+  color: #333;
+  transition: background-color 0.2s;
+  user-select: none;
+}
+
+.menu-header:hover {
+  background-color: #f9f9f9;
+}
+
+.menu-header.open {
+  color: #ee4d2d;
+  font-weight: 600;
+}
+
+.menu-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: inherit;
+}
+
+.menu-icon {
+  font-size: 18px;
+  opacity: 0.8;
+}
+
+.chevron {
+  font-size: 10px;
+  color: #999;
+  transition: transform 0.2s ease;
+}
+
+.menu-header.open .chevron {
+  color: #ee4d2d;
+  transform: rotate(180deg);
+}
+
+/* Submenu */
+.submenu-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
+  background-color: #fafafa;
+}
+
+.submenu-list.expanded {
+  max-height: 500px; /* High enough to show all items */
+}
+
+.submenu-item {
+  display: block;
+  padding: 10px 20px 10px 50px; /* Indent under icon */
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent; /* Prepare for active border */
+}
+
+.submenu-item:hover {
+  color: #ee4d2d;
+  background-color: #f0f0f0;
+}
+
+.submenu-item.active {
+  color: #ee4d2d;
+  font-weight: 500;
+  border-left-color: #ee4d2d;
+  background-color: #fff4f2;
+}
+
+/* Content Area */
+.dashboard-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.content-panel {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  min-height: 400px;
+  padding: 24px;
+}
+
+.content-panel h2 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 20px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 16px;
+}
+
+.panel-body {
+  font-size: 15px;
+  color: #555;
+  line-height: 1.6;
+}

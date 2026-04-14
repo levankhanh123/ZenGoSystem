@@ -1,0 +1,167 @@
+.finance-container {
+  padding: 24px;
+  background-color: #f7f8fa;
+  min-height: 100%;
+}
+
+.finance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.finance-header h2 {
+  font-size: 20px;
+  color: #333;
+  margin: 0;
+}
+
+.finance-btn {
+  background-color: #fca120;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.finance-btn:hover {
+  background-color: #e6911c;
+}
+
+.bank-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.bank-card {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #eaeaea;
+  position: relative;
+}
+
+.bank-card.default {
+  border: 2px solid #fca120;
+}
+
+.default-badge {
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  background-color: #fca120;
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.bank-logo-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #666;
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+.bank-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.bank-info p {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.bank-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.bank-actions button {
+  background: none;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+  padding: 0;
+}
+
+.btn-delete {
+  color: #d93025;
+}
+
+.btn-set-default {
+  color: #fca120;
+}
+
+/* Form Styles Shared */
+.finance-form-wrapper {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 32px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #fca120;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.btn-cancel {
+  background: white;
+  border: 1px solid #ddd;
+  color: #333;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}

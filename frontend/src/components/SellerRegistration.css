@@ -1,0 +1,355 @@
+/* Base Layout Styles */
+.seller-registration-wrapper {
+  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  background-color: #f6f6f6;
+  display: flex;
+  flex-direction: column;
+}
+
+.sr-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+}
+
+.sr-header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.zengo-logo {
+  color: #ee4d2d;
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.sr-header-title {
+  font-size: 20px;
+  color: #333333;
+  border-left: 1px solid #e5e5e5;
+  padding-left: 16px;
+  margin-top: 4px;
+}
+
+.sr-main-content {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  background-color: #ffffff;
+  margin-top: 24px;
+  margin-bottom: 100px; /* Space for bottom bar */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  padding: 40px;
+}
+
+/* Stepper Styles */
+.sr-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70%;
+  max-width: 800px;
+  margin: 0 auto 56px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.step-indicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #e5e5e5;
+  z-index: 2;
+}
+
+.step.active .step-indicator {
+  background-color: #ee4d2d;
+  box-shadow: 0 0 0 4px rgba(238, 77, 45, 0.2);
+}
+
+.step-label {
+  font-size: 16px;
+  color: #c4c4c4;
+  position: absolute;
+  top: 30px;
+  white-space: nowrap;
+}
+
+.step.active .step-label {
+  color: #333333;
+  font-weight: 500;
+}
+
+.step-connector {
+  flex: 1;
+  max-width: 200px;
+  height: 2px;
+  background-color: #e5e5e5;
+  margin: 0 16px;
+  margin-top: -16px;
+}
+
+/* Form Styles */
+.sr-form-container {
+  padding-top: 24px;
+  border-top: 1px solid #f2f2f2;
+}
+
+.sr-form {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.sr-form-group {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.sr-form-group.align-top {
+  align-items: flex-start;
+}
+
+.form-label {
+  width: 220px;
+  text-align: right;
+  font-size: 14px;
+  color: #555555;
+  flex-shrink: 0;
+  display: block;
+}
+
+.sr-form-group.align-top .form-label {
+  margin-top: 8px;
+}
+
+.required {
+  color: #ee4d2d;
+  margin-right: 4px;
+}
+
+.input-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-container-outer {
+  flex: 1;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+}
+
+.has-error .form-input {
+  border-color: #ee4d2d;
+}
+
+.error-text {
+  color: #ee4d2d;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #333333;
+  transition: border-color 0.2s;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: #ee4d2d;
+}
+
+input[type="email"].form-input {
+  background-color: #fafafa;
+}
+
+.phone-input {
+  max-width: 200px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  color: #333;
+}
+.phone-input:focus { border: none; outline: none; }
+
+.char-count {
+  position: absolute;
+  right: 12px;
+  font-size: 12px;
+  color: #999999;
+  pointer-events: none;
+}
+
+.address-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  padding: 10px 14px;
+}
+
+.address-container {
+  flex: 1;
+  background-color: transparent;
+}
+
+.address-details {
+  font-size: 14px;
+  color: #333333;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.address-name {
+  font-weight: 500;
+}
+
+.edit-link {
+  color: #0b78d2;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.edit-link:hover {
+  text-decoration: underline;
+}
+
+.phone-static {
+  font-size: 14px;
+  color: #333333;
+}
+
+/* Bottom Bar */
+.sr-bottom-bar-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #ffffff;
+  border-top: 1px solid #e5e5e5;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+}
+
+.sr-bottom-bar {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 32px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.btn-save {
+  padding: 10px 24px;
+  border: 1px solid #e5e5e5;
+  background-color: #ffffff;
+  color: #333333;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 100px;
+  transition: background-color 0.2s;
+}
+
+.btn-save:hover {
+  background-color: #fafafa;
+}
+
+.btn-next {
+  padding: 10px 24px;
+  border: none;
+  background-color: #ee4d2d;
+  color: #ffffff;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 120px;
+  transition: opacity 0.2s;
+}
+
+.btn-next:hover {
+  opacity: 0.9;
+}
+
+/* Avatar Upload Styles */
+.avatar-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.avatar-preview-box {
+  width: 100px;
+  height: 100px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.3s;
+  background-color: #fafafa;
+}
+
+.avatar-preview-box:hover {
+  border-color: #ee4d2d;
+}
+
+.avatar-image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #999;
+  font-size: 12px;
+}
+
+.avatar-placeholder .upload-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+  color: #c4c4c4;
+}
+
+.avatar-help-text {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+}
