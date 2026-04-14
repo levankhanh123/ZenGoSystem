@@ -1,0 +1,44 @@
+.shipping-settings-container {
+  padding-top: 24px;
+  border-top: 1px solid #f2f2f2;
+}
+
+.section-title {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.shipping-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #ee4d2d;
+  background-color: #fff9f8;
+  border-radius: 4px;
+  max-width: 500px;
+}
+
+.radio-input {
+  accent-color: #ee4d2d;
+  width: 18px;
+  height: 18px;
+}
+
+.shipping-option-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.shipping-option-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.shipping-option-desc {
+  font-size: 14px;
+  color: #666;
+  margin-top: 4px;
+}

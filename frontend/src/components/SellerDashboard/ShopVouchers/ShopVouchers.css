@@ -1,0 +1,136 @@
+.vouchers-container {
+  padding: 24px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  min-height: 100%;
+}
+
+.vouchers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.vouchers-header h2 {
+  font-size: 20px;
+  color: #333;
+  margin: 0;
+}
+
+.create-voucher-btn {
+  background-color: #fca120;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-voucher-btn:hover {
+  background-color: #e6911c;
+}
+
+.vouchers-tabs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  position: relative;
+}
+
+.tab-btn.active {
+  color: #fca120;
+  font-weight: 600;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #fca120;
+}
+
+.vouchers-table-wrapper {
+  overflow-x: auto;
+}
+
+.vouchers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.vouchers-table th, .vouchers-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.vouchers-table th {
+  background-color: #fafafa;
+  color: #333;
+  font-weight: 600;
+}
+
+.voucher-code {
+  font-family: monospace;
+  background-color: #f4f4f4;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #333;
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-active {
+  background-color: #e6f4ea;
+  color: #1e8e3e;
+}
+
+.status-expired {
+  background-color: #fce8e6;
+  color: #d93025;
+}
+
+.action-btn {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #333;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background-color: #f4f4f4;
+}
+
+.no-data {
+  text-align: center;
+  color: #999;
+  padding: 32px !important;
+}
