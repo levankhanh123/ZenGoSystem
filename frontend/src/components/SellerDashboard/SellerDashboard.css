@@ -69,6 +69,141 @@
   color: #333;
 }
 
+.seller-notifications {
+  position: relative;
+}
+
+.seller-notification-button {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seller-notification-icon {
+  font-size: 18px;
+}
+
+.seller-notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ee4d2d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seller-notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 360px;
+  max-height: 420px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+  z-index: 1200;
+}
+
+.seller-notification-panel-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.seller-notification-panel-header p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.seller-notification-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.seller-notification-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+
+.seller-notification-item.is-unread {
+  border-color: rgba(238, 77, 45, 0.24);
+  background: #fff6f3;
+}
+
+.seller-notification-item.is-read {
+  opacity: 0.82;
+}
+
+.seller-notification-item-head {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.seller-notification-item-head strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.seller-notification-item-head span {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.seller-notification-item p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.seller-notification-read-button {
+  margin-top: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: #ee4d2d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.seller-notification-empty,
+.seller-notification-error {
+  padding: 18px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.seller-notification-error {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
 /* Main Layout */
 .dashboard-main {
   display: flex;

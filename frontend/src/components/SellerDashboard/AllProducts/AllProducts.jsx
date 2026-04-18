@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AllProducts.css';
 import api from '../../../api/axios';
+import { useSellerSession } from '../../../contexts/SellerSessionContext';
 
 const TABS = ['Tất cả', 'Hoạt động', 'Hết hàng', 'Đã ẩn'];
 
@@ -14,6 +15,7 @@ const getStatusClass = (status) => {
 }
 
 const AllProducts = ({ onAddProduct }) => {
+  const { selectedShop } = useSellerSession();
   const [activeTab, setActiveTab] = useState('Tất cả');
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState([]);
@@ -25,8 +27,14 @@ const AllProducts = ({ onAddProduct }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Tạm thời truyền shop_id=1. Cần thay thế bằng thực tế khi có Auth Context.
-      const shopId = 1;
+      const shopId = selectedShop?.id;
+
+      if (!shopId) {
+        setProducts([]);
+        setCategories([]);
+        setLoading(false);
+        return;
+      }
 
       const [productsRes, categoriesRes] = await Promise.all([
          api.get(`/products?shop_id=${shopId}`),
@@ -44,7 +52,7 @@ const AllProducts = ({ onAddProduct }) => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedShop?.id]);
 
   const filteredProducts = products.filter(product => {
     const matchStatus = activeTab === 'Tất cả' || product.status === activeTab;
@@ -113,6 +121,11 @@ const AllProducts = ({ onAddProduct }) => {
 
   return (
     <div className="all-products-container">
+      {!selectedShop && (
+        <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '12px', background: '#fff4e5', color: '#9a3412' }}>
+          Chưa có cửa hàng được chọn để tải danh sách sản phẩm.
+        </div>
+      )}
       <div className="products-header-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Tất cả sản phẩm</h2>
         <button className="add-product-btn" onClick={onAddProduct} style={{
