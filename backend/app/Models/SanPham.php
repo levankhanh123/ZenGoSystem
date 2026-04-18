@@ -25,6 +25,6 @@ class SanPham extends Model
         'hinh_dai_dien',
         'trang_thai',
         'created_by',
-        'updated_by'
+        'updated_by',
     ];
 }

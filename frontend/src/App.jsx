@@ -1,30 +1,30 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import './App.css';
-import SellerDashboard from './components/SellerDashboard/SellerDashboard';
-import SellerRegistration from './components/SellerRegistration';
-import { io } from "socket.io-client";
+import "./bootstrap";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import "./App.css";
+import AdminRoutes from "./admin/routes/AdminRoutes";
+import SellerRegistration from "./components/SellerRegistration";
+import SellerDashboard from "./components/SellerDashboard/SellerDashboard";
+import { SellerSessionProvider } from "./contexts/SellerSessionContext";
+import { sellerAppRoutes, sellerDefaultRoute } from "./routePaths";
 
-const socket = io("http://localhost:3001");
+function SellerRouteView({ path }) {
+    return (
+        <SellerSessionProvider>
+            {path === "/seller-dashboard" ? <SellerDashboard /> : <SellerRegistration />}
+        </SellerSessionProvider>
+    );
+}
 
 function App() {
-    useEffect(() => {
-        socket.on("receive_notification", (data) => {
-            alert("Thông báo mới: " + data.message);
-            // Cập nhật trạng thái đơn hàng hoặc tin nhắn tại đây
-        });
-        
-        return () => {
-             socket.off("receive_notification");
-        };
-    }, []);
-
     return (
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
             <Routes>
-                <Route path="/seller-dashboard" element={<SellerDashboard />} />
-                <Route path="/seller-registration" element={<SellerRegistration />} />
-                <Route path="*" element={<Navigate to="/seller-dashboard" replace />} />
+                <Route path="/" element={<Navigate to={sellerDefaultRoute} replace />} />
+                {sellerAppRoutes.map((path) => (
+                    <Route key={path} path={path} element={<SellerRouteView path={path} />} />
+                ))}
+                <AdminRoutes />
+                <Route path="*" element={<Navigate to={sellerDefaultRoute} replace />} />
             </Routes>
         </BrowserRouter>
     );

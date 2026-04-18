@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './ShopVouchers.css';
 import CreateVoucher from './CreateVoucher';
 import api from '../../../api/axios';
+import { useSellerSession } from '../../../contexts/SellerSessionContext';
 
 const TABS = ['Tất cả', 'Đang diễn ra', 'Sắp diễn ra', 'Tạm dừng', 'Đã kết thúc'];
 
@@ -29,73 +30,77 @@ const formatCurrency = (amount) => {
 };
 
 const ShopVouchers = () => {
-  const [activeTab, setActiveTab] = useState('Tất cả');
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingVoucher, setEditingVoucher] = useState(null);
-  const [vouchers, setVouchers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+    const { selectedShop } = useSellerSession();
+    const [activeTab, setActiveTab] = useState('Tất cả');
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingVoucher, setEditingVoucher] = useState(null);
+    const [vouchers, setVouchers] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
 
-  const shopId = 1;
+    const fetchVouchers = async () => {
+        if (!selectedShop?.id) {
+            setVouchers([]);
+            return;
+        }
 
-  const fetchVouchers = async () => {
-      setIsLoading(true);
-      try {
-          const response = await api.get(`/vouchers/shop/${shopId}`);
-          setVouchers(response.data);
-      } catch (error) {
-          console.error('Failed to fetch vouchers', error);
-      } finally {
-          setIsLoading(false);
-      }
-  };
+        setIsLoading(true);
+        try {
+            const response = await api.get(`/vouchers/shop/${selectedShop.id}`);
+            setVouchers(response.data);
+        } catch (error) {
+            console.error('Failed to fetch vouchers', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  useEffect(() => {
-      fetchVouchers();
-  }, [shopId]);
+    useEffect(() => {
+        fetchVouchers();
+    }, [selectedShop?.id]);
 
-  const handleCreateNew = () => {
-      setEditingVoucher(null);
-      setIsFormOpen(true);
-  };
+    const handleCreateNew = () => {
+        setEditingVoucher(null);
+        setIsFormOpen(true);
+    };
 
-  const handleEdit = (voucher) => {
-      setEditingVoucher(voucher);
-      setIsFormOpen(true);
-  };
+    const handleEdit = (voucher) => {
+        setEditingVoucher(voucher);
+        setIsFormOpen(true);
+    };
 
-  const handleTogglePause = async (id) => {
-      try {
-          await api.patch(`/vouchers/${id}/toggle-pause`);
-          fetchVouchers();
-      } catch (error) {
-          alert('Không thể cập nhật trạng thái: ' + (error.response?.data?.message || error.message));
-      }
-  };
+    const handleTogglePause = async (id) => {
+        try {
+            await api.patch(`/vouchers/${id}/toggle-pause`);
+            fetchVouchers();
+        } catch (error) {
+            alert('Không thể cập nhật trạng thái: ' + (error.response?.data?.message || error.message));
+        }
+    };
 
-  const handleEndEarly = async (id) => {
-      if (window.confirm('Bạn có chắc chắn muốn kết thúc sớm voucher này?')) {
-          try {
-              await api.patch(`/vouchers/${id}/end-early`);
-              fetchVouchers();
-          } catch (error) {
-              alert('Lỗi: ' + (error.response?.data?.message || error.message));
-          }
-      }
-  };
+    const handleEndEarly = async (id) => {
+        if (window.confirm('Bạn có chắc chắn muốn kết thúc sớm voucher này?')) {
+            try {
+                await api.patch(`/vouchers/${id}/end-early`);
+                fetchVouchers();
+            } catch (error) {
+                alert('Lỗi: ' + (error.response?.data?.message || error.message));
+            }
+        }
+    };
 
-  const handleFormSuccess = () => {
-      setIsFormOpen(false);
-      fetchVouchers();
-  };
+    const handleFormSuccess = () => {
+        setIsFormOpen(false);
+        fetchVouchers();
+    };
 
-  const filteredVouchers = vouchers.filter(voucher => {
-    return activeTab === 'Tất cả' || voucher.trang_thai === activeTab;
-  });
+    const filteredVouchers = vouchers.filter(voucher => {
+        return activeTab === 'Tất cả' || voucher.trang_thai === activeTab;
+    });
 
   if (isFormOpen) {
     return (
         <CreateVoucher 
-            shopId={shopId} 
+            shopId={selectedShop?.id} 
             editingVoucher={editingVoucher}
             onCancel={() => setIsFormOpen(false)} 
             onSuccess={handleFormSuccess} 
@@ -107,8 +112,16 @@ const ShopVouchers = () => {
     <div className="vouchers-container">
       <div className="vouchers-header">
         <h2>Chương trình giảm giá của Shop</h2>
-        <button className="create-voucher-btn" onClick={handleCreateNew}>+ Tạo mã giảm giá</button>
+        <button 
+           className="create-voucher-btn" 
+           onClick={handleCreateNew}
+           disabled={!selectedShop}
+        >
+            + Tạo mã giảm giá
+        </button>
       </div>
+
+         {!selectedShop && <div className="no-data">Chưa có cửa hàng được chọn để tải voucher.</div>}
 
       <div className="vouchers-tabs">
         {TABS.map(tab => (

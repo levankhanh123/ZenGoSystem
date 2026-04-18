@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import ShopInformation from './ShopInformation/ShopInformation';
 import ShippingSettings from './ShippingSettings/ShippingSettings';
 import api from '../api/axios';
+import { useSellerSession } from '../contexts/SellerSessionContext';
 import './SellerRegistration.css';
 
 const SellerRegistration = () => {
   const navigate = useNavigate();
+  const { selectedUser, reloadSession } = useSellerSession();
   const [step, setStep] = useState(1);
   const [shopData, setShopData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,13 +21,19 @@ const SellerRegistration = () => {
   };
 
   const handleShippingComplete = async () => {
+    if (!selectedUser?.id) {
+      const message = 'Chưa có tài khoản seller nào được chọn.';
+      setSubmitError(message);
+      alert(message);
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
       const formData = new FormData();
-      // Temporarily mock user_id since there is no logged-in context yet
-      formData.append('user_id', 1);
+      formData.append('user_id', selectedUser.id);
       
       formData.append('shopName', shopData.shopName);
       formData.append('email', shopData.email);
@@ -41,6 +49,7 @@ const SellerRegistration = () => {
         },
       });
 
+      await reloadSession();
       setStep(3);
     } catch (error) {
       console.error('Lỗi khi đăng ký shop:', error);
@@ -101,6 +110,9 @@ const SellerRegistration = () => {
               Đi tới Trang Quản Trị
             </button>
           </div>
+        )}
+        {submitError && step !== 3 && (
+          <div style={{ marginTop: '16px', color: '#b91c1c', textAlign: 'center' }}>{submitError}</div>
         )}
       </div>
     </div>

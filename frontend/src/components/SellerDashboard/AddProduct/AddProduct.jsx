@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './AddProduct.css';
 import api from '../../../api/axios';
+import { useSellerSession } from '../../../contexts/SellerSessionContext';
 
 const AddProduct = () => {
+    const { selectedShop } = useSellerSession();
     const [formData, setFormData] = useState({
         name: '',
         sku: '',
@@ -46,6 +48,12 @@ const AddProduct = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!selectedShop?.id) {
+            alert('Chưa chọn cửa hàng hoạt động. Hãy chọn shop ở header trước khi đăng sản phẩm.');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -60,8 +68,7 @@ const AddProduct = () => {
                 submitData.append('image', formData.image);
             }
             
-            // Tạm thời truyền shop_id=1. Cần thay thế bằng thực tế khi có Auth Context.
-            submitData.append('shop_id', 1);
+            submitData.append('shop_id', selectedShop.id);
 
             await api.post('/products', submitData, {
                 headers: {
@@ -97,6 +104,11 @@ const AddProduct = () => {
 
     return (
         <div className="add-product-container">
+            {!selectedShop && (
+                <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '12px', background: '#fff4e5', color: '#9a3412' }}>
+                    Chưa chọn cửa hàng hoạt động. Hãy chọn shop ở header trước khi đăng sản phẩm.
+                </div>
+            )}
             <div className="add-product-header">
                 <h2>Thêm sản phẩm mới</h2>
                 <p>Quản lý và thêm mới sản phẩm vào hệ thống của bạn</p>

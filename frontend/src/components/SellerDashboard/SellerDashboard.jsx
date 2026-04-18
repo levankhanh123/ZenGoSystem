@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AllOrders from './AllOrders/AllOrders';
 import HandoverOrders from './HandoverOrders/HandoverOrders';
@@ -12,11 +12,36 @@ import BankAccounts from './Finance/BankAccounts';
 import WithdrawalRequests from './Finance/WithdrawalRequests';
 import RevenueDashboard from './Finance/RevenueDashboard';
 import StatisticsDashboard from './Data/StatisticsDashboard';
-import NotificationBell from '../NotificationBell/NotificationBell';
+import api from '../../api/axios';
+import { useSellerSession } from '../../contexts/SellerSessionContext';
+import { getSellerSocketClient } from '../../lib/socketClient';
 import './SellerDashboard.css';
+
+function formatNotificationTime(value) {
+  if (!value) {
+    return '--';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+
+  return date.toLocaleString('vi-VN');
+}
 
 const SellerDashboard = () => {
   const navigate = useNavigate();
+  const {
+    loading,
+    error,
+    selectedUser,
+    selectedShop,
+    availableUsers,
+    availableShops,
+    updateSelection,
+  } = useSellerSession();
   // State to manage expanded/collapsed sidebar menus
   const [openMenus, setOpenMenus] = useState({
     orders: true, // Open by default as per request details mostly focus on it
@@ -28,6 +53,11 @@ const SellerDashboard = () => {
 
   const [activeTab, setActiveTab] = useState('Tuyển dụng ZENGO'); // Just a placeholder active tab
   const [showLogout, setShowLogout] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationError, setNotificationError] = useState('');
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const toggleMenu = (menuKey) => {
     setOpenMenus((prev) => ({
@@ -40,6 +70,148 @@ const SellerDashboard = () => {
     setActiveTab(tabName);
   };
 
+  const handleChangeUser = async (event) => {
+    await updateSelection({ userId: event.target.value, shopId: '' });
+  };
+
+  const handleChangeShop = async (event) => {
+    await updateSelection({ userId: selectedUser?.id, shopId: event.target.value });
+  };
+
+  useEffect(() => {
+    if (!selectedUser?.id) {
+      setNotifications([]);
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchNotifications = async () => {
+      setNotificationsLoading(true);
+      setNotificationError('');
+
+      try {
+        const response = await api.get('/seller/notifications', {
+          params: { user_id: selectedUser.id },
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        setNotifications(response.data?.data || []);
+        setUnreadNotificationCount(response.data?.unread_count || 0);
+      } catch (requestError) {
+        if (!cancelled) {
+          setNotificationError(requestError.response?.data?.message || 'Không thể tải thông báo realtime.');
+        }
+      } finally {
+        if (!cancelled) {
+          setNotificationsLoading(false);
+        }
+      }
+    };
+
+    fetchNotifications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedUser?.id]);
+
+  useEffect(() => {
+    if (!selectedUser?.id) {
+      return undefined;
+    }
+
+    const socket = getSellerSocketClient();
+    const room = `user.${selectedUser.id}`;
+
+    const applyNotificationList = (updater) => {
+      setNotifications((current) => {
+        const next = updater(current);
+        setUnreadNotificationCount(next.filter((item) => !item.da_doc).length);
+        return next.slice(0, 20);
+      });
+    };
+
+    const handleCreated = (payload) => {
+      const notification = payload?.notification;
+
+      if (!notification || Number(notification.nguoi_dung_id) !== Number(selectedUser.id)) {
+        return;
+      }
+
+      applyNotificationList((current) => [
+        notification,
+        ...current.filter((item) => item.id !== notification.id),
+      ]);
+    };
+
+    const handleUpdated = (payload) => {
+      const notification = payload?.notification;
+
+      if (!notification || Number(notification.nguoi_dung_id) !== Number(selectedUser.id)) {
+        return;
+      }
+
+      applyNotificationList((current) =>
+        current.map((item) => (item.id === notification.id ? notification : item))
+      );
+    };
+
+    const handleDeleted = (payload) => {
+      if (Number(payload?.user_id) !== Number(selectedUser.id)) {
+        return;
+      }
+
+      applyNotificationList((current) => current.filter((item) => item.id !== payload?.notification_id));
+    };
+
+    socket.connect();
+    socket.emit('join_room', room);
+    socket.on('notification.created', handleCreated);
+    socket.on('notification.updated', handleUpdated);
+    socket.on('notification.deleted', handleDeleted);
+
+    return () => {
+      socket.emit('leave_room', room);
+      socket.off('notification.created', handleCreated);
+      socket.off('notification.updated', handleUpdated);
+      socket.off('notification.deleted', handleDeleted);
+    };
+  }, [selectedUser?.id]);
+
+  const handleMarkNotificationAsRead = async (notificationId) => {
+    if (!selectedUser?.id) {
+      return;
+    }
+
+    try {
+      const response = await api.put(`/seller/notifications/${notificationId}/read`, {
+        user_id: selectedUser.id,
+      });
+      const updatedNotification = response.data?.data;
+
+      if (!updatedNotification) {
+        return;
+      }
+
+      setNotifications((current) => {
+        const next = current.map((item) => (item.id === updatedNotification.id ? updatedNotification : item));
+        setUnreadNotificationCount(next.filter((item) => !item.da_doc).length);
+        return next;
+      });
+    } catch (requestError) {
+      setNotificationError(requestError.response?.data?.message || 'Không thể đánh dấu đã đọc.');
+    }
+  };
+
+  if (loading) {
+    return <div className="dashboard-wrapper" style={{ padding: '32px', color: '#64748b' }}>Đang tải ngữ cảnh người bán...</div>;
+  }
+
   return (
     <div className="dashboard-wrapper">
       {/* Header */}
@@ -49,15 +221,97 @@ const SellerDashboard = () => {
           <span className="header-title">Kênh Người Bán</span>
         </div>
         <div className="header-right" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <NotificationBell nguoiDungId={1} />
-          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '12px' }}>
+            <select
+              value={selectedUser?.id || ''}
+              onChange={handleChangeUser}
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', minWidth: '180px' }}
+            >
+              <option value="">Chọn tài khoản seller</option>
+              {availableUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.ho_ten}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedShop?.id || ''}
+              onChange={handleChangeShop}
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', minWidth: '220px' }}
+            >
+              <option value="">Chọn cửa hàng</option>
+              {availableShops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.ten_cua_hang}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="seller-notifications">
+            <button
+              type="button"
+              className="seller-notification-button"
+              onClick={() => setShowNotifications((current) => !current)}
+            >
+              <span className="seller-notification-icon">🔔</span>
+              {unreadNotificationCount > 0 && (
+                <span className="seller-notification-badge">{unreadNotificationCount}</span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="seller-notification-panel">
+                <div className="seller-notification-panel-header">
+                  <div>
+                    <strong>Thông báo realtime</strong>
+                    <p>{unreadNotificationCount} chưa đọc</p>
+                  </div>
+                </div>
+
+                {notificationError && <div className="seller-notification-error">{notificationError}</div>}
+
+                {notificationsLoading ? (
+                  <div className="seller-notification-empty">Đang tải thông báo...</div>
+                ) : notifications.length === 0 ? (
+                  <div className="seller-notification-empty">Chưa có thông báo nào.</div>
+                ) : (
+                  <div className="seller-notification-list">
+                    {notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`seller-notification-item ${notification.da_doc ? 'is-read' : 'is-unread'}`}
+                      >
+                        <div className="seller-notification-item-head">
+                          <strong>{notification.tieu_de}</strong>
+                          <span>{formatNotificationTime(notification.created_at)}</span>
+                        </div>
+                        <p>{notification.noi_dung}</p>
+                        {!notification.da_doc && (
+                          <button
+                            type="button"
+                            className="seller-notification-read-button"
+                            onClick={() => handleMarkNotificationAsRead(notification.id)}
+                          >
+                            Đánh dấu đã đọc
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div 
              className="user-profile-section"
              onClick={() => setShowLogout(!showLogout)}
              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}
           >
-            <div className="shop-avatar-placeholder">H</div>
-            <span className="shop-name-display">hieuzk123</span>
+            <div className="shop-avatar-placeholder">{(selectedShop?.ten_cua_hang || selectedUser?.ho_ten || 'S').charAt(0).toUpperCase()}</div>
+            <span className="shop-name-display">{selectedShop?.ten_cua_hang || selectedUser?.ho_ten || 'Seller'}</span>
           </div>
 
           {showLogout && (
@@ -107,6 +361,11 @@ const SellerDashboard = () => {
 
       {/* Main Layout */}
       <div className="dashboard-main">
+        {error && (
+          <div style={{ margin: '16px 24px 0', padding: '12px 16px', borderRadius: '12px', background: '#fef2f2', color: '#b91c1c' }}>
+            {error}
+          </div>
+        )}
         {/* Sidebar */}
         <aside className="dashboard-sidebar">
           <nav className="sidebar-nav">

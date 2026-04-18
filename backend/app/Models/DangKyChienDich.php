@@ -5,6 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int $campaign_id
+ * @property int $shop_id
+ * @property \Illuminate\Support\Carbon|null $ngay_dang_ky
+ * @property string $trang_thai
+ * @property string|null $ly_do_tu_choi
+ * @property string|null $ghi_chu_admin
+ * @property-read \App\Models\ChienDich|null $campaign
+ * @property-read \App\Models\CuaHang|null $shop
+ */
 class DangKyChienDich extends Model
 {
     use HasFactory;
@@ -17,11 +28,22 @@ class DangKyChienDich extends Model
         'ngay_dang_ky',
         'trang_thai',
         'ly_do_tu_choi',
-        'ghi_chu_admin'
+        'ghi_chu_admin',
+    ];
+
+    protected $casts = [
+        'ngay_dang_ky' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function campaign()
     {
         return $this->belongsTo(ChienDich::class, 'campaign_id');
+    }
+
+    public function shop()
+    {
+        return $this->belongsTo(CuaHang::class, 'shop_id');
     }
 }
