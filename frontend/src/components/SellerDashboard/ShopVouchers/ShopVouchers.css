@@ -114,6 +114,30 @@
   color: #d93025;
 }
 
+.status-upcoming {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+}
+
+.status-paused {
+  background-color: #fff7e6;
+  color: #fa8c16;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn.end-btn {
+  color: #d93025;
+  border-color: #fcc2c2;
+}
+
+.action-btn.end-btn:hover {
+  background-color: #fff1f0;
+}
+
 .action-btn {
   background: none;
   border: 1px solid #ddd;

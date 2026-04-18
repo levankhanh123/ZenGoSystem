@@ -5,11 +5,14 @@ import HandoverOrders from './HandoverOrders/HandoverOrders';
 import AllProducts from './AllProducts/AllProducts';
 import AddProduct from './AddProduct/AddProduct';
 import SellerChat from './SellerChat/SellerChat';
+import ReviewManagement from './ReviewManagement/ReviewManagement';
+import CampaignRegistration from './CampaignRegistration/CampaignRegistration';
 import ShopVouchers from './ShopVouchers/ShopVouchers';
 import BankAccounts from './Finance/BankAccounts';
 import WithdrawalRequests from './Finance/WithdrawalRequests';
 import RevenueDashboard from './Finance/RevenueDashboard';
 import StatisticsDashboard from './Data/StatisticsDashboard';
+import NotificationBell from '../NotificationBell/NotificationBell';
 import './SellerDashboard.css';
 
 const SellerDashboard = () => {
@@ -45,7 +48,9 @@ const SellerDashboard = () => {
           <h1 className="zengo-logo">ZENGO</h1>
           <span className="header-title">Kênh Người Bán</span>
         </div>
-        <div className="header-right" style={{ position: 'relative' }}>
+        <div className="header-right" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <NotificationBell nguoiDungId={1} />
+          
           <div 
              className="user-profile-section"
              onClick={() => setShowLogout(!showLogout)}
@@ -137,6 +142,12 @@ const SellerDashboard = () => {
                     onClick={() => handleSubMenuClick('Đơn trả hàng / hủy')}
                  >
                     Đơn trả hàng/ hoàn tiền hoặc đơn hủy
+                 </div>
+                 <div 
+                    className={`submenu-item ${activeTab === 'Đăng ký chiến dịch' ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('Đăng ký chiến dịch')}
+                 >
+                    Đăng ký chiến dịch
                  </div>
                  <div 
                     className={`submenu-item ${activeTab === 'Cài đặt vận chuyển' ? 'active' : ''}`}
@@ -277,6 +288,8 @@ const SellerDashboard = () => {
              <AllProducts onAddProduct={() => setActiveTab('Thêm sản phẩm')} />
           ) : activeTab === 'Thêm sản phẩm' ? (
              <AddProduct />
+          ) : activeTab === 'Đăng ký chiến dịch' ? (
+             <CampaignRegistration />
           ) : activeTab === 'Chat với khách' ? (
              <SellerChat />
           ) : activeTab === 'Kho voucher' ? (
@@ -289,6 +302,8 @@ const SellerDashboard = () => {
              <BankAccounts />
           ) : activeTab === 'Thống kê' ? (
              <StatisticsDashboard />
+           ) : activeTab === 'Đánh giá shop' ? (
+              <ReviewManagement />
           ) : (
              <div className="content-panel">
                <h2>{activeTab || 'Chào mừng đến với Kênh Người Bán'}</h2>

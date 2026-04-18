@@ -1,41 +1,113 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ShopVouchers.css';
 import CreateVoucher from './CreateVoucher';
+import api from '../../../api/axios';
 
-// Mock data
-const initialVouchers = [
-  { id: 1, code: 'GIAM10K', type: 'Giảm số tiền', value: '10.000đ', minOrder: '100.000đ', usage: '45/100', status: 'Đang diễn ra', expiry: '31/12/2026' },
-  { id: 2, code: 'SIEUSALE20', type: 'Giảm phần trăm', value: '20%', minOrder: '500.000đ', usage: '12/50', status: 'Đang diễn ra', expiry: '15/11/2026' },
-  { id: 3, code: 'FREESHIP', type: 'Miễn phí vận chuyển', value: 'Tối đa 30k', minOrder: '200.000đ', usage: '100/100', status: 'Đã kết thúc', expiry: '01/10/2025' },
-];
-
-const TABS = ['Tất cả', 'Đang diễn ra', 'Sắp diễn ra', 'Đã kết thúc'];
+const TABS = ['Tất cả', 'Đang diễn ra', 'Sắp diễn ra', 'Tạm dừng', 'Đã kết thúc'];
 
 const getStatusClass = (status) => {
    switch(status) {
       case 'Đang diễn ra': return 'status-active';
       case 'Đã kết thúc': return 'status-expired';
+      case 'Sắp diễn ra': return 'status-upcoming';
+      case 'Tạm dừng': return 'status-paused';
       default: return '';
    }
 }
 
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+};
+
+const formatCurrency = (amount) => {
+    if (!amount) return '0đ';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+};
+
 const ShopVouchers = () => {
   const [activeTab, setActiveTab] = useState('Tất cả');
-  const [isCreating, setIsCreating] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState(null);
+  const [vouchers, setVouchers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredVouchers = initialVouchers.filter(voucher => {
-    return activeTab === 'Tất cả' || voucher.status === activeTab;
+  const shopId = 1;
+
+  const fetchVouchers = async () => {
+      setIsLoading(true);
+      try {
+          const response = await api.get(`/vouchers/shop/${shopId}`);
+          setVouchers(response.data);
+      } catch (error) {
+          console.error('Failed to fetch vouchers', error);
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
+  useEffect(() => {
+      fetchVouchers();
+  }, [shopId]);
+
+  const handleCreateNew = () => {
+      setEditingVoucher(null);
+      setIsFormOpen(true);
+  };
+
+  const handleEdit = (voucher) => {
+      setEditingVoucher(voucher);
+      setIsFormOpen(true);
+  };
+
+  const handleTogglePause = async (id) => {
+      try {
+          await api.patch(`/vouchers/${id}/toggle-pause`);
+          fetchVouchers();
+      } catch (error) {
+          alert('Không thể cập nhật trạng thái: ' + (error.response?.data?.message || error.message));
+      }
+  };
+
+  const handleEndEarly = async (id) => {
+      if (window.confirm('Bạn có chắc chắn muốn kết thúc sớm voucher này?')) {
+          try {
+              await api.patch(`/vouchers/${id}/end-early`);
+              fetchVouchers();
+          } catch (error) {
+              alert('Lỗi: ' + (error.response?.data?.message || error.message));
+          }
+      }
+  };
+
+  const handleFormSuccess = () => {
+      setIsFormOpen(false);
+      fetchVouchers();
+  };
+
+  const filteredVouchers = vouchers.filter(voucher => {
+    return activeTab === 'Tất cả' || voucher.trang_thai === activeTab;
   });
 
-  if (isCreating) {
-    return <CreateVoucher onCancel={() => setIsCreating(false)} />;
+  if (isFormOpen) {
+    return (
+        <CreateVoucher 
+            shopId={shopId} 
+            editingVoucher={editingVoucher}
+            onCancel={() => setIsFormOpen(false)} 
+            onSuccess={handleFormSuccess} 
+        />
+    );
   }
 
   return (
     <div className="vouchers-container">
       <div className="vouchers-header">
         <h2>Chương trình giảm giá của Shop</h2>
-        <button className="create-voucher-btn" onClick={() => setIsCreating(true)}>+ Tạo mã giảm giá</button>
+        <button className="create-voucher-btn" onClick={handleCreateNew}>+ Tạo mã giảm giá</button>
       </div>
 
       <div className="vouchers-tabs">
@@ -51,41 +123,66 @@ const ShopVouchers = () => {
       </div>
 
       <div className="vouchers-table-wrapper">
-         <table className="vouchers-table">
-            <thead>
-               <tr>
-                  <th>Mã Voucher</th>
-                  <th>Loại giảm giá / Mức giảm</th>
-                  <th>Đơn tối thiểu</th>
-                  <th>Đã dùng / Tổng</th>
-                  <th>Hạn sử dụng</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-               </tr>
-            </thead>
-            <tbody>
-               {filteredVouchers.length > 0 ? filteredVouchers.map(voucher => (
-                  <tr key={voucher.id}>
-                     <td><span className="voucher-code">{voucher.code}</span></td>
-                     <td>
-                        <div style={{fontWeight: 500}}>{voucher.type}</div>
-                        <div style={{color: '#d93025', marginTop: '4px'}}>{voucher.value}</div>
-                     </td>
-                     <td>{voucher.minOrder}</td>
-                     <td>{voucher.usage}</td>
-                     <td>{voucher.expiry}</td>
-                     <td><span className={`status-badge ${getStatusClass(voucher.status)}`}>{voucher.status}</span></td>
-                     <td>
-                        <button className="action-btn">Chi tiết</button>
-                     </td>
-                  </tr>
-               )) : (
-                  <tr>
-                     <td colSpan="7" className="no-data">Không tìm thấy mã giảm giá nào!</td>
-                  </tr>
-               )}
-            </tbody>
-         </table>
+         {isLoading ? (
+             <div style={{ padding: '20px', textAlign: 'center' }}>Đang tải dữ liệu...</div>
+         ) : (
+             <table className="vouchers-table">
+                <thead>
+                   <tr>
+                      <th>Mã Voucher</th>
+                      <th>Thuộc tính / Mức giảm</th>
+                      <th>Đơn tối thiểu</th>
+                      <th>Đã dùng / Tổng</th>
+                      <th>Hạn sử dụng</th>
+                      <th>Trạng thái</th>
+                      <th>Thao tác</th>
+                   </tr>
+                </thead>
+                <tbody>
+                   {filteredVouchers.length > 0 ? filteredVouchers.map(voucher => (
+                      <tr key={voucher.id}>
+                         <td><span className="voucher-code">{voucher.ma_voucher}</span></td>
+                         <td>
+                            <div style={{fontWeight: 500}}>{voucher.loai === 'Shop' ? 'Voucher Shop' : 'Voucher Sàn'}</div>
+                            <div style={{color: '#d93025', marginTop: '4px'}}>
+                                Giảm {voucher.kieu_giam_gia === 'phan_tram' ? `${parseInt(voucher.gia_tri_voucher)}%` : formatCurrency(voucher.gia_tri_voucher)}
+                            </div>
+                            {voucher.kieu_giam_gia === 'phan_tram' && voucher.giam_toi_da > 0 && (
+                                <div style={{fontSize: '12px', color: '#666', marginTop: '4px'}}>Tối đa {formatCurrency(voucher.giam_toi_da)}</div>
+                            )}
+                         </td>
+                         <td>{formatCurrency(voucher.gia_tri_don_toi_thieu)}</td>
+                         <td>{voucher.so_luong_da_dung} / {voucher.so_luong_voucher}</td>
+                         <td>
+                             <div style={{fontSize: '13px'}}>{formatDate(voucher.thoi_gian_bat_dau)}</div>
+                             <div style={{fontSize: '13px', color: '#888'}}>Đến {formatDate(voucher.thoi_gian_ket_thuc)}</div>
+                         </td>
+                         <td><span className={`status-badge ${getStatusClass(voucher.trang_thai)}`}>{voucher.trang_thai}</span></td>
+                         <td>
+                             <div className="actions-cell">
+                                {voucher.trang_thai !== 'Đã kết thúc' && (
+                                    <>
+                                        <button className="action-btn" onClick={() => handleEdit(voucher)}>Sửa</button>
+                                        <button className="action-btn" onClick={() => handleTogglePause(voucher.id)}>
+                                            {voucher.trang_thai === 'Tạm dừng' ? 'Khôi phục' : 'Tạm dừng'}
+                                        </button>
+                                        <button className="action-btn end-btn" onClick={() => handleEndEarly(voucher.id)}>Kết thúc</button>
+                                    </>
+                                )}
+                                {voucher.trang_thai === 'Đã kết thúc' && (
+                                    <button className="action-btn" onClick={() => handleEdit(voucher)}>Chi tiết</button>
+                                )}
+                             </div>
+                         </td>
+                      </tr>
+                   )) : (
+                      <tr>
+                         <td colSpan="7" className="no-data">Không tìm thấy mã giảm giá nào!</td>
+                      </tr>
+                   )}
+                </tbody>
+             </table>
+         )}
       </div>
     </div>
   );

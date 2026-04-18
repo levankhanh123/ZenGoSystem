@@ -58,9 +58,11 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+    //         'options' => extension_loaded('pdo_mysql') ? array_filter([
+    //     PDO::MYSQL_ATTR_SSL_CA => base_path('ca-cert.pem'),
+    //     // Dòng dưới này giúp bỏ qua kiểm tra chứng chỉ nếu file pem có vấn đề
+    //     PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => true, 
+    // ]) : [],
         ],
 
         'mariadb' => [

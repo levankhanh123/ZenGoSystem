@@ -7,6 +7,11 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\SellerRegistrationController;
 
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\CampaignController;
+use App\Http\Controllers\Api\VoucherController;
+use App\Http\Controllers\Api\ReviewController;
+
 Route::get('/test', function () {
     return response()->json(['message' => 'Backend run successfully!']);
 });
@@ -46,3 +51,24 @@ Route::patch('/products/{id}/stock', [ProductController::class, 'updateStock']);
 Route::get('/chat/conversations/{cua_hang_id}', [ChatController::class, 'getConversations']);
 Route::get('/chat/messages/{id}', [ChatController::class, 'getMessages']);
 Route::post('/chat/message', [ChatController::class, 'sendMessage']);
+
+// Notification Routes
+Route::get('/notifications/{nguoi_dung_id}', [NotificationController::class, 'index']);
+Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+
+// Campaign Routes
+Route::get('/campaigns', [CampaignController::class, 'index']);
+Route::post('/campaigns/register', [CampaignController::class, 'register']);
+Route::post('/campaigns/unregister', [CampaignController::class, 'unregister']);
+
+// Voucher Routes
+Route::get('/vouchers/shop/{cua_hang_id}', [VoucherController::class, 'getShopVouchers']);
+Route::post('/vouchers', [VoucherController::class, 'store']);
+Route::put('/vouchers/{id}', [VoucherController::class, 'update']);
+Route::patch('/vouchers/{id}/toggle-pause', [VoucherController::class, 'togglePause']);
+Route::patch('/vouchers/{id}/end-early', [VoucherController::class, 'endEarly']);
+
+// Review Routes
+Route::get('/reviews/shop/{shop_id}', [ReviewController::class, 'getShopReviews']);
+Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);
+Route::get('/reviews/stats/{shop_id}', [ReviewController::class, 'getShopReviewStats']);
