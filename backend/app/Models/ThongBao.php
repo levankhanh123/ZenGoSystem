@@ -57,4 +57,3 @@ class ThongBao extends Model
         return $this->user?->vai_tro;
     }
 }
-

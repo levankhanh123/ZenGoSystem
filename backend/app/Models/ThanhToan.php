@@ -54,4 +54,3 @@ class ThanhToan extends Model
         return $this->hasMany(HoanTien::class, 'thanh_toan_id');
     }
 }
-

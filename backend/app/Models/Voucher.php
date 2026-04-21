@@ -107,4 +107,3 @@ class Voucher extends Model
             : $giam;
     }
 }
-

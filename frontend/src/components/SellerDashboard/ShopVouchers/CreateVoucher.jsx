@@ -82,9 +82,9 @@ const CreateVoucher = ({ shopId, editingVoucher, onCancel, onSuccess }) => {
       try {
           let response;
           if (isEditMode) {
-              response = await api.put(`/vouchers/${editingVoucher.id}`, payload);
+              response = await api.put(`/seller/vouchers/${editingVoucher.id}`, payload);
           } else {
-              response = await api.post('/vouchers', payload);
+              response = await api.post('/seller/vouchers', payload);
           }
 
           if (response.status === 200 || response.status === 201) {

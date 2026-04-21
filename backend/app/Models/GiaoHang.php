@@ -71,4 +71,3 @@ class GiaoHang extends Model
         return $this->shipper();
     }
 }
-

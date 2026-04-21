@@ -96,4 +96,3 @@ class KhieuNai extends Model
         return $this->hasOne(HoiThoai::class, 'khieu_nai_id');
     }
 }
-

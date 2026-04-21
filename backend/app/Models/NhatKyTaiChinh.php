@@ -34,4 +34,3 @@ class NhatKyTaiChinh extends Model
         'created_at' => 'datetime',
     ];
 }
-

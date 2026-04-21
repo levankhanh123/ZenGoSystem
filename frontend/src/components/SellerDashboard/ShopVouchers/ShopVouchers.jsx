@@ -45,10 +45,13 @@ const ShopVouchers = () => {
 
         setIsLoading(true);
         try {
-            const response = await api.get(`/vouchers/shop/${selectedShop.id}`);
-            setVouchers(response.data);
+            const response = await api.get('/seller/vouchers', {
+                params: { shop_id: selectedShop.id }
+            });
+            setVouchers(response.data?.data || response.data || []);
         } catch (error) {
             console.error('Failed to fetch vouchers', error);
+            setVouchers([]);
         } finally {
             setIsLoading(false);
         }
@@ -70,7 +73,7 @@ const ShopVouchers = () => {
 
     const handleTogglePause = async (id) => {
         try {
-            await api.patch(`/vouchers/${id}/toggle-pause`);
+            await api.patch(`/seller/vouchers/${id}/toggle-pause`);
             fetchVouchers();
         } catch (error) {
             alert('Không thể cập nhật trạng thái: ' + (error.response?.data?.message || error.message));
@@ -80,7 +83,7 @@ const ShopVouchers = () => {
     const handleEndEarly = async (id) => {
         if (window.confirm('Bạn có chắc chắn muốn kết thúc sớm voucher này?')) {
             try {
-                await api.patch(`/vouchers/${id}/end-early`);
+                await api.patch(`/seller/vouchers/${id}/end-early`);
                 fetchVouchers();
             } catch (error) {
                 alert('Lỗi: ' + (error.response?.data?.message || error.message));

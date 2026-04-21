@@ -57,4 +57,3 @@ class LichSuTrangThaiDonHang extends Model
         return $this->updatedBy();
     }
 }
-

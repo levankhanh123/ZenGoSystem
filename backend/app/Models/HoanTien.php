@@ -57,4 +57,3 @@ class HoanTien extends Model
         return $this->payment();
     }
 }
-

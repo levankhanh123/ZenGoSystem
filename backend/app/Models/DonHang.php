@@ -168,4 +168,3 @@ class DonHang extends Model
         return $this->statusHistories()->orderBy('created_at');
     }
 }
-

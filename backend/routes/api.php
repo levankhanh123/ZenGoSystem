@@ -29,10 +29,16 @@ Route::get('/schema', function (Request $request) {
 
     try {
         $columns = DB::select("DESCRIBE {$table}");
+
         return response()->json($columns);
     } catch (\Throwable $exception) {
         return response()->json(['error' => $exception->getMessage()], 400);
     }
+});
+
+// Categories helper (legacy or simple)
+Route::get('/categories-simple', function () {
+    return response()->json(DB::table('danh_muc')->orderBy('id')->get());
 });
 
 // Include Modular Routes

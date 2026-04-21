@@ -10,7 +10,6 @@ class TinNhan extends Model
     use HasFactory;
 
     protected $table = 'tin_nhan';
-    
     public $timestamps = false; // We use created_at but not updated_at typically for messages
 
     protected $fillable = [

@@ -101,4 +101,3 @@ class CuaHang extends Model
         return $this->hasMany(CuocTroChuyen::class, 'cua_hang_id');
     }
 }
-

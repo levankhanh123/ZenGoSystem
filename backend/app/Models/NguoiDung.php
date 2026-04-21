@@ -167,4 +167,3 @@ class NguoiDung extends Authenticatable
     public function isNguoiBan(): bool { return $this->vai_tro === 'nguoi_ban'; }
     public function isShipper(): bool  { return $this->vai_tro === 'shipper'; }
 }
-

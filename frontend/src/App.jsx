@@ -1,8 +1,13 @@
 import { useEffect, Suspense, useMemo } from 'react'
-import { useRoutes, BrowserRouter } from 'react-router-dom'
+import { useRoutes, BrowserRouter, Route, Routes } from 'react-router-dom'
 import { io } from "socket.io-client"
-import { routers } from './routers/Router'
+import { routers as buyerRouters } from './routers/Router'
 import ErrorBoundary from './components/common/ErrorBoundary'
+import AdminRoutes from "./admin/routes/AdminRoutes"
+import SellerRegistration from "./components/SellerRegistration"
+import SellerDashboard from "./components/SellerDashboard/SellerDashboard"
+import { SellerSessionProvider } from "./contexts/SellerSessionContext"
+import { sellerAppRoutes } from "./routePaths"
 import './App.css'
 
 // Chỉ khởi tạo socket nếu có URL, tránh lỗi runtime
@@ -41,12 +46,28 @@ const transformRoutes = (routes) => {
     });
 };
 
+function SellerRouteView({ path }) {
+    return (
+        <SellerSessionProvider>
+            <ErrorBoundary>
+                {path === "/seller-dashboard" ? <SellerDashboard /> : <SellerRegistration />}
+            </ErrorBoundary>
+        </SellerSessionProvider>
+    );
+}
+
+function BuyerRoutes() {
+    const transformedRouters = useMemo(() => transformRoutes(buyerRouters), []);
+    const routes = useRoutes(transformedRouters);
+    return routes;
+}
+
 function AppContents() {
     useEffect(() => {
         socket.connect();
         
         const handleNotification = (data) => {
-            alert("Thông báo mới: " + data.message);
+            console.log("Notification received:", data);
         };
         
         socket.on("receive_notification", handleNotification);
@@ -57,11 +78,20 @@ function AppContents() {
         };
     }, []);
 
-    // Sử dụng useMemo để tránh re-transform mỗi lần render
-    const transformedRouters = useMemo(() => transformRoutes(routers), []);
-    const routes = useRoutes(transformedRouters);
-    
-    return routes || <div className="p-10 text-center text-gray-500">404 - Không tìm thấy nội dung</div>;
+    return (
+        <Routes>
+            {/* Seller Routes */}
+            {sellerAppRoutes.map((path) => (
+                <Route key={path} path={path} element={<SellerRouteView path={path} />} />
+            ))}
+            
+            {/* Admin Routes */}
+            <Route path="/admin/*" element={<AdminRoutes />} />
+            
+            {/* Buyer Routes - Handle anything else */}
+            <Route path="/*" element={<BuyerRoutes />} />
+        </Routes>
+    );
 }
 
 function App() {
