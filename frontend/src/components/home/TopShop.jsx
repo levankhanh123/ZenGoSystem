@@ -13,13 +13,18 @@ export default function TopShop() {
   useEffect(() => {
     ApiService.getTopShops()
       .then((data) => {
-        setShops(Array.isArray(data) ? data : data.data ?? []);
+        // Đảm bảo data là mảng
+        const shopsArr = Array.isArray(data) ? data : (data?.data ?? []);
+        setShops(shopsArr);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error("API Error in TopShop:", err);
+        setLoading(false);
+      });
   }, []);
 
-  if (!loading && shops.length === 0) return null;
+  if (!loading && (!shops || shops.length === 0)) return null;
 
   return (
     <section className="w-full py-12 bg-white">

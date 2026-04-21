@@ -18,12 +18,19 @@ export default function TopProducts() {
 
   useEffect(() => {
     ApiService.getTopProducts()
-      .then(data => setProducts(data))
-      .catch(err => console.error("API error:", err));
+      .then(data => {
+        // Đảm bảo data là mảng để tránh lỗi .length hoặc .slice
+        const productsArr = Array.isArray(data) ? data : (data?.data ?? []);
+        setProducts(productsArr);
+      })
+      .catch(err => {
+        console.error("API error:", err);
+        setProducts([]); // Trả về mảng rỗng nếu lỗi
+      });
   }, []);
 
-  const totalPages = Math.ceil(products.length / PAGE_SIZE);
-  const paged = products.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil((products?.length || 0) / PAGE_SIZE));
+  const paged = Array.isArray(products) ? products.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) : [];
 
   return (
     <section className="w-full py-12 bg-[#fdf5f0]">
