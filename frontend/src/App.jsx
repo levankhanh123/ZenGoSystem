@@ -1,17 +1,42 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import { io } from "socket.io-client";
-const socket = io("http://localhost:3001");
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { routers } from './routers/Router.jsx';
+import { Suspense } from 'react';
+
+
+
+function renderRoutes(routes) {
+  return routes.map((route, index) => {
+    const Component = route.component;
+
+    if (route.children) {
+      return (
+        <Route key={index} path={route.path} element={<Component />}>
+          {renderRoutes(route.children)}
+        </Route>
+      );
+    }
+
+    // Route không có children
+    if (route.index) {
+      return <Route key={index} index element={<Component />} />;
+    }
+
+    return <Route key={index} path={route.path} element={<Component />} />;
+  });
+}
+
+
 
 function App() {
-    useEffect(() => {
-        socket.on("receive_notification", (data) => {
-            alert("Thông báo mới: " + data.message);
-            // Cập nhật trạng thái đơn hàng hoặc tin nhắn tại đây
-        });
-    }, []);
+  return(
+    <BrowserRouter>
+      <Suspense fallback={<div>Loading ...</div>}>
+        <Routes>
+          {renderRoutes(routers)}
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
 }
 
 export default App
