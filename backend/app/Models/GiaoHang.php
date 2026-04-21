@@ -46,6 +46,7 @@ class GiaoHang extends Model
         'ngay_giao_du_kien' => 'datetime',
         'ngay_giao_thuc_te' => 'datetime',
         'cod_thu_ho' => 'decimal:2',
+        'so_lan_giao_lai' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -55,8 +56,18 @@ class GiaoHang extends Model
         return $this->belongsTo(DonHang::class, 'don_hang_id');
     }
 
+    public function donHang()
+    {
+        return $this->order();
+    }
+
     public function shipper()
     {
         return $this->belongsTo(NguoiDung::class, 'nguoi_giao_hang_id');
+    }
+
+    public function nguoiGiaoHang()
+    {
+        return $this->shipper();
     }
 }

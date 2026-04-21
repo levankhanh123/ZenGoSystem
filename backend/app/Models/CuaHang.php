@@ -56,9 +56,34 @@ class CuaHang extends Model
         return $this->belongsTo(NguoiDung::class, 'nguoi_ban_id');
     }
 
+    public function nguoiBan()
+    {
+        return $this->owner();
+    }
+
+    public function products()
+    {
+        return $this->hasMany(SanPham::class, 'cua_hang_id');
+    }
+
+    public function sanPhams()
+    {
+        return $this->products();
+    }
+
+    public function vouchers()
+    {
+        return $this->hasMany(Voucher::class, 'cua_hang_id');
+    }
+
     public function orders()
     {
         return $this->hasMany(DonHang::class, 'cua_hang_id');
+    }
+
+    public function donHangs()
+    {
+        return $this->orders();
     }
 
     public function settlements()
@@ -69,5 +94,10 @@ class CuaHang extends Model
     public function campaignRegistrations()
     {
         return $this->hasMany(DangKyChienDich::class, 'shop_id');
+    }
+
+    public function cuocTroChuyen()
+    {
+        return $this->hasMany(CuocTroChuyen::class, 'cua_hang_id');
     }
 }

@@ -22,7 +22,7 @@ class ThongBao extends Model
 
     protected $table = 'thong_bao';
 
-    public $timestamps = false;
+    public $timestamps = false; // Table only has created_at, no updated_at
 
     protected $appends = [
         'target_role',
@@ -45,6 +45,11 @@ class ThongBao extends Model
     public function user()
     {
         return $this->belongsTo(NguoiDung::class, 'nguoi_dung_id');
+    }
+
+    public function nguoiDung()
+    {
+        return $this->user();
     }
 
     public function getTargetRoleAttribute()

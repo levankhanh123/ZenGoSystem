@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $trang_thai
  * @property string|null $ly_do_tu_choi
  * @property string|null $ghi_chu_admin
- * @property-read \App\Models\Voucher|null $campaign
+ * @property-read \App\Models\ChienDich|null $campaign
  * @property-read \App\Models\CuaHang|null $shop
  */
 class DangKyChienDich extends Model
@@ -39,7 +39,7 @@ class DangKyChienDich extends Model
 
     public function campaign()
     {
-        return $this->belongsTo(Voucher::class, 'campaign_id');
+        return $this->belongsTo(ChienDich::class, 'campaign_id');
     }
 
     public function shop()

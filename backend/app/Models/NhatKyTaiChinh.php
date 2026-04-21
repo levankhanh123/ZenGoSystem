@@ -19,7 +19,7 @@ class NhatKyTaiChinh extends Model
 
     protected $table = 'nhat_ky_tai_chinh';
 
-    public $timestamps = false;
+    public $timestamps = false; // Only created_at exists
 
     protected $fillable = [
         'loai',

@@ -42,8 +42,18 @@ class HoanTien extends Model
         return $this->belongsTo(DonHang::class, 'don_hang_id');
     }
 
+    public function donHang()
+    {
+        return $this->order();
+    }
+
     public function payment()
     {
         return $this->belongsTo(ThanhToan::class, 'thanh_toan_id');
+    }
+
+    public function thanhToan()
+    {
+        return $this->payment();
     }
 }

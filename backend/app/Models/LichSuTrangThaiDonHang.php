@@ -42,8 +42,18 @@ class LichSuTrangThaiDonHang extends Model
         return $this->belongsTo(DonHang::class, 'don_hang_id');
     }
 
+    public function donHang()
+    {
+        return $this->order();
+    }
+
     public function updatedBy()
     {
         return $this->belongsTo(NguoiDung::class, 'nguoi_cap_nhat_id');
+    }
+
+    public function nguoiCapNhat()
+    {
+        return $this->updatedBy();
     }
 }

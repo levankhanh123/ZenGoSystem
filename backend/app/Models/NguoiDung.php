@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -24,9 +26,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\HoSoGiaoHang|null $shipperProfile
  */
-class NguoiDung extends Model
+class NguoiDung extends Authenticatable
 {
-    use HasFactory;
+    use HasApiTokens, HasFactory;
 
     protected $table = 'nguoi_dung';
 
@@ -47,6 +49,10 @@ class NguoiDung extends Model
         'updated_by',
     ];
 
+    protected $hidden = [
+        'mat_khau',
+    ];
+
     protected $casts = [
         'ngay_sinh' => 'date',
         'last_login_at' => 'datetime',
@@ -54,31 +60,92 @@ class NguoiDung extends Model
         'updated_at' => 'datetime',
     ];
 
-    public function thongBao()
+    // Sanctum dùng field mat_khau
+    public function getAuthPassword()
+    {
+        return $this->mat_khau;
+    }
+
+    // ── COMMON RELATIONS ──
+    public function thongBaos()
     {
         return $this->hasMany(ThongBao::class, 'nguoi_dung_id');
     }
 
-    public function conversations()
+    public function thongBao() // Alias or legacy
     {
-        return $this->hasMany(HoiThoaiThanhVien::class, 'nguoi_dung_id');
+        return $this->thongBaos();
     }
 
-    public function complaints()
+    public function khieuNais()
     {
         return $this->hasMany(KhieuNai::class, 'nguoi_khieu_nai_id');
     }
 
-    public function buyerOrders()
+    public function complaints() // Alias or legacy
+    {
+        return $this->khieuNais();
+    }
+
+    // ── BUYER RELATIONS ──
+    public function gioHang()
+    {
+        return $this->hasOne(GioHang::class, 'nguoi_mua_id');
+    }
+
+    public function donHangs()
     {
         return $this->hasMany(DonHang::class, 'nguoi_mua_id');
     }
 
-    public function sellerShops()
+    public function buyerOrders() // Legacy
+    {
+        return $this->donHangs();
+    }
+
+    public function diaChis()
+    {
+        return $this->hasMany(DiaChiNguoiDung::class, 'nguoi_dung_id');
+    }
+
+    public function diaChiMacDinh()
+    {
+        return $this->hasOne(DiaChiNguoiDung::class, 'nguoi_dung_id')
+                    ->where('la_mac_dinh', true);
+    }
+
+    public function danhGias()
+    {
+        return $this->hasMany(DanhGia::class, 'nguoi_mua_id');
+    }
+
+    public function cuocTroChuyen()
+    {
+        return $this->hasMany(CuocTroChuyen::class, 'nguoi_mua_id');
+    }
+
+    public function conversations() // Possible legacy or different system
+    {
+        return $this->hasMany(HoiThoaiThanhVien::class, 'nguoi_dung_id');
+    }
+
+    public function viTien()
+    {
+        return $this->hasOne(ViTien::class, 'nguoi_dung_id');
+    }
+
+    // ── SELLER RELATIONS ──
+    public function cuaHang()
+    {
+        return $this->hasOne(CuaHang::class, 'nguoi_ban_id');
+    }
+
+    public function sellerShops() // In case one user has multiple shops
     {
         return $this->hasMany(CuaHang::class, 'nguoi_ban_id');
     }
 
+    // ── ADMIN / SHIPPER RELATIONS ──
     public function assignedComplaints()
     {
         return $this->hasMany(KhieuNai::class, 'assigned_admin_id');
@@ -93,4 +160,10 @@ class NguoiDung extends Model
     {
         return $this->hasMany(DoiSoatShipper::class, 'shipper_id');
     }
+
+    // ── HELPERS ──
+    public function isAdmin(): bool    { return $this->vai_tro === 'admin'; }
+    public function isNguoiMua(): bool { return $this->vai_tro === 'nguoi_mua'; }
+    public function isNguoiBan(): bool { return $this->vai_tro === 'nguoi_ban'; }
+    public function isShipper(): bool  { return $this->vai_tro === 'shipper'; }
 }
