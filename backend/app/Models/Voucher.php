@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -81,6 +82,29 @@ class Voucher extends Model
     public function approvedRegistrations()
     {
         return $this->hasMany(DangKyChienDich::class, 'campaign_id')->where('trang_thai', 'da_duyet');
+    }
+
+    // Kiểm tra voucher còn hiệu lực không
+    public function getIsValidAttribute(): bool
+    {
+        return $this->trang_thai === 'dang_dien_ra'
+            && $this->so_luong_con_lai > 0
+            && now()->between($this->thoi_gian_bat_dau, $this->thoi_gian_ket_thuc);
+    }
+
+    // Tính số tiền được giảm cho 1 đơn hàng
+    public function tinhGiamGia(float $tongDon): float
+    {
+        if ($tongDon < $this->gia_tri_don_toi_thieu) return 0;
+
+        $giam = $this->loai === 'phan_tram'
+            ? $tongDon * ($this->gia_tri_voucher / 100)
+            : $this->gia_tri_voucher;
+
+        // Không được vượt quá mức giảm tối đa
+        return $this->giam_toi_da > 0
+            ? min($giam, $this->giam_toi_da)
+            : $giam;
     }
 }
 

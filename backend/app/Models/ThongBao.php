@@ -47,8 +47,14 @@ class ThongBao extends Model
         return $this->belongsTo(NguoiDung::class, 'nguoi_dung_id');
     }
 
+    public function nguoiDung()
+    {
+        return $this->user();
+    }
+
     public function getTargetRoleAttribute()
     {
         return $this->user?->vai_tro;
     }
 }
+

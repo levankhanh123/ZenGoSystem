@@ -83,9 +83,24 @@ class DonHang extends Model
         return $this->belongsTo(NguoiDung::class, 'nguoi_mua_id');
     }
 
+    public function nguoiMua()
+    {
+        return $this->buyer();
+    }
+
     public function shop()
     {
         return $this->belongsTo(CuaHang::class, 'cua_hang_id');
+    }
+
+    public function cuaHang()
+    {
+        return $this->shop();
+    }
+
+    public function chiTietDonHangs()
+    {
+        return $this->hasMany(ChiTietDonHang::class, 'don_hang_id');
     }
 
     public function reviews()
@@ -93,19 +108,24 @@ class DonHang extends Model
         return $this->hasMany(DanhGia::class, 'don_hang_id');
     }
 
+    public function danhGias()
+    {
+        return $this->reviews();
+    }
+
     public function delivery()
     {
         return $this->hasOne(GiaoHang::class, 'don_hang_id');
     }
 
-    public function complaints()
+    public function giaHang() // Handling typo/alias from buyer side
     {
-        return $this->hasMany(KhieuNai::class, 'don_hang_id');
+        return $this->delivery();
     }
 
-    public function conversations()
+    public function thanhToan()
     {
-        return $this->hasMany(HoiThoai::class, 'don_hang_id');
+        return $this->hasOne(ThanhToan::class, 'don_hang_id');
     }
 
     public function payments()
@@ -113,13 +133,39 @@ class DonHang extends Model
         return $this->hasMany(ThanhToan::class, 'don_hang_id');
     }
 
+    public function complaints()
+    {
+        return $this->hasMany(KhieuNai::class, 'don_hang_id');
+    }
+
+    public function khieuNais()
+    {
+        return $this->complaints();
+    }
+
+    public function conversations()
+    {
+        return $this->hasMany(HoiThoai::class, 'don_hang_id');
+    }
+
     public function refunds()
     {
         return $this->hasMany(HoanTien::class, 'don_hang_id');
+    }
+
+    public function hoanTiens()
+    {
+        return $this->refunds();
     }
 
     public function statusHistories()
     {
         return $this->hasMany(LichSuTrangThaiDonHang::class, 'don_hang_id');
     }
+
+    public function lichSuTrangThai()
+    {
+        return $this->statusHistories()->orderBy('created_at');
+    }
 }
+

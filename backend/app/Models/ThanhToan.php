@@ -43,4 +43,15 @@ class ThanhToan extends Model
     {
         return $this->belongsTo(DonHang::class, 'don_hang_id');
     }
+
+    public function donHang()
+    {
+        return $this->order();
+    }
+
+    public function hoanTien()
+    {
+        return $this->hasMany(HoanTien::class, 'thanh_toan_id');
+    }
 }
+

@@ -1,87 +1,41 @@
 <?php
 
-use App\Http\Controllers\Api\ChatController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\SellerContextController;
-use App\Http\Controllers\Api\SellerFinanceController;
-use App\Http\Controllers\Api\SellerNotificationController;
-use App\Http\Controllers\Api\SellerOrderController;
-use App\Http\Controllers\Api\SellerRegistrationController;
-use App\Http\Controllers\Api\SellerVoucherController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\CampaignController;
-use App\Http\Controllers\Api\VoucherController;
-use App\Http\Controllers\Api\ReviewController;
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider within a group which
+| is assigned the "api" middleware group. Enjoy building your API!
+|
+*/
 
 Route::get('/test', function () {
     return response()->json(['message' => 'Backend run successfully!']);
 });
 
-Route::post('/seller-registration', [SellerRegistrationController::class, 'register']);
-Route::get('/seller/context', [SellerContextController::class, 'show']);
-
+// Schema helper (Development only)
 Route::get('/schema', function (Request $request) {
+    if (app()->environment('production')) {
+        return response()->json(['error' => 'Forbidden'], 403);
+    }
+    
     $table = $request->query('table', 'san_pham');
 
     try {
         $columns = DB::select("DESCRIBE {$table}");
-
         return response()->json($columns);
     } catch (\Throwable $exception) {
         return response()->json(['error' => $exception->getMessage()], 400);
     }
 });
 
-Route::get('/categories', function () {
-    if (DB::table('danh_muc')->count() === 0) {
-        DB::table('danh_muc')->insert([
-            ['ten_danh_muc' => 'Ao', 'slug' => 'ao'],
-            ['ten_danh_muc' => 'Quan', 'slug' => 'quan'],
-            ['ten_danh_muc' => 'Phu kien', 'slug' => 'phu-kien'],
-        ]);
-    }
-
-    return response()->json(DB::table('danh_muc')->orderBy('id')->get());
-});
-
-Route::get('/products', [ProductController::class, 'index']);
-Route::post('/products', [ProductController::class, 'store']);
-Route::delete('/products/{id}', [ProductController::class, 'destroy']);
-Route::patch('/products/{id}/status', [ProductController::class, 'updateStatus']);
-Route::patch('/products/{id}/stock', [ProductController::class, 'updateStock']);
-Route::get('/orders', [SellerOrderController::class, 'index']);
-Route::get('/seller/vouchers', [SellerVoucherController::class, 'index']);
-Route::get('/seller/finance', [SellerFinanceController::class, 'show']);
-Route::get('/seller/notifications', [SellerNotificationController::class, 'index']);
-Route::put('/seller/notifications/{thongBao}/read', [SellerNotificationController::class, 'markAsRead']);
-
-Route::get('/chat/conversations/{cua_hang_id}', [ChatController::class, 'getConversations']);
-Route::get('/chat/messages/{id}', [ChatController::class, 'getMessages']);
-Route::post('/chat/message', [ChatController::class, 'sendMessage']);
-
-// Notification Routes
-Route::get('/notifications/{nguoi_dung_id}', [NotificationController::class, 'index']);
-Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-
-// Campaign Routes
-Route::get('/campaigns', [CampaignController::class, 'index']);
-Route::post('/campaigns/register', [CampaignController::class, 'register']);
-Route::post('/campaigns/unregister', [CampaignController::class, 'unregister']);
-
-// Voucher Routes
-Route::get('/vouchers/shop/{cua_hang_id}', [VoucherController::class, 'getShopVouchers']);
-Route::post('/vouchers', [VoucherController::class, 'store']);
-Route::put('/vouchers/{id}', [VoucherController::class, 'update']);
-Route::patch('/vouchers/{id}/toggle-pause', [VoucherController::class, 'togglePause']);
-Route::patch('/vouchers/{id}/end-early', [VoucherController::class, 'endEarly']);
-
-// Review Routes
-Route::get('/reviews/shop/{shop_id}', [ReviewController::class, 'getShopReviews']);
-Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);
-Route::get('/reviews/stats/{shop_id}', [ReviewController::class, 'getShopReviewStats']);
-
+// Include Modular Routes
+require __DIR__ . '/buyer.php';
+require __DIR__ . '/seller.php';
 require __DIR__ . '/admin.php';

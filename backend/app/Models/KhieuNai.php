@@ -55,6 +55,7 @@ class KhieuNai extends Model
     ];
 
     protected $casts = [
+        'hinh_anh_bang_chung' => 'array',
         'resolved_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -65,9 +66,24 @@ class KhieuNai extends Model
         return $this->belongsTo(DonHang::class, 'don_hang_id');
     }
 
+    public function donHang()
+    {
+        return $this->order();
+    }
+
     public function complainant()
     {
         return $this->belongsTo(NguoiDung::class, 'nguoi_khieu_nai_id');
+    }
+
+    public function nguoiKhieuNai()
+    {
+        return $this->complainant();
+    }
+
+    public function doiTuongBiKhieuNai()
+    {
+        return $this->belongsTo(NguoiDung::class, 'doi_tuong_bi_khieu_nai_id');
     }
 
     public function assignedAdmin()
@@ -80,3 +96,4 @@ class KhieuNai extends Model
         return $this->hasOne(HoiThoai::class, 'khieu_nai_id');
     }
 }
+
