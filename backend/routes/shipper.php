@@ -21,6 +21,7 @@ Route::middleware('auth:sanctum')->prefix('shipper')->name('shipper.')->group(fu
         Route::get('/', [ShipperController::class, 'listOrders'])->name('list');
         Route::get('/{id}', [ShipperController::class, 'orderDetail'])->name('detail');
         Route::put('/{id}/status', [ShipperController::class, 'updateStatus'])->name('update-status');
+        Route::post('/{id}/receive', [ShipperController::class, 'receiveOrder'])->name('receive');
     });
     
     // Quản lý tài khoản

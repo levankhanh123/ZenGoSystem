@@ -29,7 +29,10 @@ class DoiSoatShipper extends Model
     protected $fillable = [
         'ma_doi_soat_shipper',
         'shipper_id',
+        'giao_hang_id',
         'cod_da_thu',
+        'so_tien_nguoi_ban',
+        'so_tien_hoa_hong',
         'cod_da_nop',
         'cod_con_thieu',
         'phi_giao_hang_duoc_huong',
@@ -40,8 +43,15 @@ class DoiSoatShipper extends Model
         'ghi_chu',
     ];
 
+    public function delivery()
+    {
+        return $this->belongsTo(GiaoHang::class, 'giao_hang_id');
+    }
+
     protected $casts = [
         'cod_da_thu' => 'decimal:2',
+        'so_tien_nguoi_ban' => 'decimal:2',
+        'so_tien_hoa_hong' => 'decimal:2',
         'cod_da_nop' => 'decimal:2',
         'cod_con_thieu' => 'decimal:2',
         'phi_giao_hang_duoc_huong' => 'decimal:2',
