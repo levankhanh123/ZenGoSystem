@@ -41,8 +41,25 @@ Route::get('/categories-simple', function () {
     return response()->json(DB::table('danh_muc')->orderBy('id')->get());
 });
 
+// ZaloPay Callback
+Route::post('/zalopay/callback', [\App\Http\Controllers\ZaloPayController::class, 'callback']);
+
+// Giao Hang Nhanh (GHN) Proxy
+Route::get('/ghn/provinces', [\App\Http\Controllers\GhnController::class, 'getProvinces']);
+Route::post('/ghn/districts', [\App\Http\Controllers\GhnController::class, 'getDistricts']);
+Route::post('/ghn/wards', [\App\Http\Controllers\GhnController::class, 'getWards']);
+
 // Include Modular Routes
 require __DIR__ . '/buyer.php';
 require __DIR__ . '/seller.php';
 require __DIR__ . '/admin.php';
 require __DIR__ . '/shipper.php';
+
+// Chat Routes (Shared across roles)
+Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
+    Route::get('/conversations', [\App\Http\Controllers\Api\ChatController::class, 'getConversations']);
+    Route::post('/initiate', [\App\Http\Controllers\Api\ChatController::class, 'initiateConversation']);
+    Route::get('/{id}/messages', [\App\Http\Controllers\Api\ChatController::class, 'getMessages']);
+    Route::post('/{id}/messages', [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+    Route::patch('/{id}/read', [\App\Http\Controllers\Api\ChatController::class, 'markAsRead']);
+});
