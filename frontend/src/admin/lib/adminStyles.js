@@ -2,9 +2,12 @@ export const adminStyles = {
     shell: "min-h-screen bg-[#f6f7fb] text-slate-900",
     pageStack: "flex flex-col gap-6",
     pageHero: "relative overflow-hidden rounded-[32px] border border-[rgba(132,86,72,0.1)] bg-white p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_10px_24px_rgba(16,24,40,0.04)] md:p-7",
-    eyebrow: "inline-flex items-center gap-2 rounded-full bg-[rgba(238,77,45,0.08)] px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#ee4d2d]",
-    sectionTitle: "text-[1.3rem] font-extrabold tracking-[-0.02em] text-[#17202a]",
-    sectionCopy: "text-[0.9rem] leading-7 text-[#6d5a53]",
+    heroHeader: "flex flex-col gap-2 border-b border-slate-100 bg-white px-8 py-5 transition-all duration-300",
+    heroTitle: "text-xl font-bold tracking-tight text-slate-900 md:text-2xl",
+    heroBadge: "inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 shadow-sm",
+    eyebrow: "text-[10px] font-bold uppercase tracking-[0.15em] text-[#ee4d2d]",
+    sectionTitle: "text-lg font-bold tracking-tight text-slate-900",
+    sectionCopy: "text-sm leading-relaxed text-slate-500",
     panel: "rounded-[24px] border border-[rgba(132,86,72,0.14)] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.04)]",
     tableCard: "rounded-[18px] border border-[rgba(132,86,72,0.1)] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.04)]",
     detailCard: "rounded-[16px] border border-[rgba(132,86,72,0.12)] bg-white",
@@ -21,6 +24,10 @@ export const adminStyles = {
     darkButton: "rounded-[16px] bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 hover:shadow-[0_10px_24px_rgba(82,46,29,0.08)] disabled:cursor-not-allowed disabled:opacity-60",
     sidebarScroll: "xl:h-screen xl:overflow-y-auto xl:overscroll-contain",
     mainScroll: "xl:h-screen xl:overflow-y-auto xl:overscroll-contain",
+    input: "w-full rounded-2xl border border-slate-300 bg-white px-5 py-3.5 text-sm outline-none ring-[var(--admin-primary)] transition focus:border-[var(--admin-primary)] focus:ring-4 focus:ring-[#ee4d2d]/10 disabled:bg-slate-50 disabled:text-slate-400",
+    select: "w-full appearance-none rounded-2xl border border-slate-300 bg-white px-5 py-3.5 text-sm outline-none ring-[var(--admin-primary)] transition focus:border-[var(--admin-primary)] focus:ring-4 focus:ring-[#ee4d2d]/10",
+    stickyBar: "sticky top-0 z-20 mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-white/95 px-8 py-4 shadow-sm backdrop-blur-md",
+    panelHeader: "flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-8 py-5",
 };
 
 export const adminChatStyles = {
