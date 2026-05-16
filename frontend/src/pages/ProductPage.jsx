@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
@@ -79,16 +79,26 @@ const styles = `
     box-shadow: 0 3px 10px rgba(236,72,153,0.3);
   }
 
-  /* Skeleton shimmer */
-  @keyframes shimmer {
-    0% { background-position: -400px 0 }
-    100% { background-position: 400px 0 }
+  /* Section title */
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: #be185d;
+    display: flex;
+    items-center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0 0.5rem;
   }
-  .shimmer {
-    background: linear-gradient(90deg, #fce7f3 25%, #fdf2f8 50%, #fce7f3 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.4s infinite linear;
-    border-radius: 10px;
+
+  /* Category card style */
+  .category-item {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .category-item:hover {
+    transform: translateY(-2px);
+    border-color: #f9a8d4 !important;
   }
 `;
 
@@ -109,11 +119,13 @@ export default function ShopPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [category, setCategory] = useState(null);
-  const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
+
+  const keyword = searchParams.get("q") || "";
 
   // ================= LOAD CATEGORY =================
   useEffect(() => {
@@ -123,11 +135,22 @@ export default function ShopPage() {
           res.data.map(c => ({
             id: c.id,
             label: c.ten_danh_muc,
-            emoji: "🛍️"
+            emoji: getEmojiForCategory(c.ten_danh_muc)
           }))
         );
       });
   }, []);
+
+  const getEmojiForCategory = (name) => {
+    const n = name.toLowerCase();
+    if (n.includes("áo")) return "";
+    if (n.includes("quần")) return "";
+    if (n.includes("váy")) return "";
+    if (n.includes("phụ kiện")) return "";
+    if (n.includes("giày")) return "";
+    if (n.includes("túi")) return "";
+    return "🛍️";
+  };
 
   // ================= LOAD PRODUCTS =================
   useEffect(() => {
@@ -149,7 +172,7 @@ export default function ShopPage() {
   };
 
   // ================= PAGINATION =================
-  const PAGE_SIZE = 9;
+  const PAGE_SIZE = 12;
   const totalPages = Math.ceil(products.length / PAGE_SIZE);
   const paged = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -158,243 +181,155 @@ export default function ShopPage() {
       <style>{styles}</style>
 
       <div
-        className="shop-wrap min-h-screen pb-8"
+        className="shop-wrap min-h-screen pb-12"
         style={{ background: "linear-gradient(160deg, #fff5f9 0%, #ffffff 60%, #fdf2f8 100%)" }}
       >
-
-        {/* ===== HEADER BANNER ===== */}
-        <div
-          className="px-4 pt-5 pb-4"
-          style={{
-            background: "linear-gradient(135deg, #fce7f3 0%, #fff 100%)",
-            borderBottom: "1.5px solid #fce7f3"
-          }}
-        >
-          <p
-            className="text-lg font-black tracking-tight mb-0.5"
-            style={{ color: "#be185d" }}
-          >
-            🛍️ Cửa hàng
-          </p>
-          <p className="text-xs font-semibold" style={{ color: "#f472b6" }}>
-            Khám phá hàng ngàn sản phẩm
-          </p>
-
-          {/* Search bar */}
-          <div
-            className="search-bar flex items-center bg-white rounded-2xl px-3.5 py-2.5 gap-2 mt-3"
-            style={{
-              border: "1.5px solid #fce7f3",
-              boxShadow: "0 2px 10px rgba(236,72,153,0.07)"
-            }}
-          >
-            <Search size={15} style={{ color: "#f9a8d4" }} />
-            <input
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Tìm kiếm sản phẩm..."
-              className="flex-1 text-sm outline-none bg-transparent font-semibold"
-              style={{ color: "#3f3f46" }}
-            />
-            {keyword && (
-              <button
-                onClick={() => setKeyword("")}
-                className="flex items-center justify-center w-5 h-5 rounded-full"
-                style={{ background: "#fce7f3", color: "#ec4899" }}
-              >
-                <X size={11} />
-              </button>
-            )}
-            <div style={{ width: 1, height: 16, background: "#fce7f3" }} />
-            <SlidersHorizontal size={16} style={{ color: "#ec4899" }} />
-          </div>
-        </div>
-
-        {/* ===== CATEGORIES ===== */}
-        <div className="px-4 py-4">
-          <div
-            className="flex gap-2.5 overflow-x-auto justify-start"
-            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
-          >
-            {/* "Tất cả" pill */}
-            <button
-              onClick={() => setCategory(null)}
-              className="cat-pill flex-shrink-0 flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-sm font-extrabold"
-              style={
-                category === null
-                  ? {
-                      background: "linear-gradient(135deg, #f472b6, #ec4899)",
-                      color: "#fff",
-                      boxShadow: "0 6px 18px rgba(236,72,153,0.35)",
-                      border: "none",
-                    }
-                  : {
-                      background: "#fff",
-                      color: "#be185d",
-                      border: "2px solid #fce7f3",
-                    }
-              }
-            >
-              
-              <span>Tất cả</span>
-            </button>
-
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setCategory(cat.id)}
-                className="cat-pill flex-shrink-0 flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-sm font-extrabold"
-                style={
-                  category === cat.id
-                    ? {
-                        background: "linear-gradient(135deg, #f472b6, #ec4899)",
-                        color: "#fff",
-                        boxShadow: "0 6px 18px rgba(236,72,153,0.35)",
-                        border: "none",
-                      }
-                    : {
-                        background: "#fff",
-                        color: "#be185d",
-                        border: "2px solid #fce7f3",
-                      }
-                }
-              >
-                
-                <span>{cat.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Active indicator underline */}
-          <div className="mt-3 flex justify-center">
+        <div className="max-w-6xl mx-auto pt-6 px-4">
+          
+          {/* ===== SECTION 1: DANH MỤC ===== */}
+          <section className="mb-10">
+            <h2 className="section-title">
+              <span className="p-1.5 bg-[#fce7f3] rounded-lg"></span>
+              Danh mục sản phẩm
+            </h2>
             <div
-              className="h-1 rounded-full"
-              style={{
-                width: 40,
-                background: "linear-gradient(90deg, #f9a8d4, #ec4899)",
-                opacity: 0.5,
-              }}
-            />
-          </div>
-        </div>
+              className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3"
+            >
+              {/* "Tất cả" */}
+              <div
+                onClick={() => setCategory(null)}
+                className={`category-item flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all
+                          ${category === null ? "bg-white border-[#ec4899] shadow-md" : "bg-white/50 border-[#fce7f3]"}`}
+              >
+                <span className="text-2xl mb-1"></span>
+                <span className={`text-[11px] font-bold ${category === null ? "text-[#ec4899]" : "text-gray-500"}`}>
+                  Tất cả
+                </span>
+              </div>
 
-        {/* ===== PRODUCT GRID ===== */}
-        <div className="px-20">
-          {loading ? (
-            <div className="grid grid-cols-3 gap-2.5">
-              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
-            </div>
-          ) : paged.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-2">
-              <span className="text-4xl">🧺</span>
-              <p className="text-sm font-bold" style={{ color: "#d1d5db" }}>
-                Không có sản phẩm nào
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2.5">
-              {paged.map(p => (
+              {categories.map(cat => (
                 <div
-                  key={p.id}
-                  className="product-card bg-white rounded-2xl overflow-hidden"
-                  style={{
-                    border: "1.5px solid #fce7f3",
-                    boxShadow: "0 2px 8px rgba(236,72,153,0.06)"
-                  }}
-                  onClick={() => navigate(`/product/${p.id}`)}
+                  key={cat.id}
+                  onClick={() => setCategory(cat.id)}
+                  className={`category-item flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all
+                            ${category === cat.id ? "bg-white border-[#ec4899] shadow-md" : "bg-white/50 border-[#fce7f3]"}`}
                 >
-                  {/* Image */}
-                  <div className="overflow-hidden rounded-t-xl" style={{ background: "#fff5f9" }}>
-                    <img
-                      src={p.image}
-                      className="product-img aspect-[3/4] w-full object-cover"
-                    />
-                  </div>
-
-                  {/* Info */}
-                  <div className="p-2">
-                    <p
-                      className="text-xs font-bold line-clamp-2 leading-tight mb-1"
-                      style={{ color: "#3f3f46" }}
-                    >
-                      {p.name}
-                    </p>
-
-                    <div className="flex items-center gap-1 mb-1.5">
-                      <Star size={10} style={{ color: "#fbbf24", fill: "#fbbf24" }} />
-                      <span className="text-[10px] font-semibold" style={{ color: "#71717a" }}>
-                        {p.rating}
-                      </span>
-                      <span className="badge-sold">{p.sold}</span>
-                    </div>
-
-                    <p
-                      className="text-sm font-black"
-                      style={{
-                        background: "linear-gradient(135deg, #f472b6, #ec4899)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent"
-                      }}
-                    >
-                      {Number(p.price).toLocaleString()}₫
-                    </p>
-                  </div>
+                  <span className="text-2xl mb-1">{cat.emoji}</span>
+                  <span className={`text-[11px] font-bold text-center line-clamp-1 ${category === cat.id ? "text-[#ec4899]" : "text-gray-500"}`}>
+                    {cat.label}
+                  </span>
                 </div>
               ))}
             </div>
-          )}
+          </section>
+
+          {/* ===== SECTION 2: DÀNH RIÊNG CHO BẠN ===== */}
+          <section>
+            <div className="flex items-center justify-between mb-4 px-1">
+              <h2 className="section-title !mb-0">
+                <span className="p-1.5 bg-[#fce7f3] rounded-lg"></span>
+                {category ? `Sản phẩm thuộc danh mục` : "Dành riêng cho bạn"}
+              </h2>
+              {keyword && (
+                <span className="text-xs font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                  Kết quả cho: "{keyword}"
+                </span>
+              )}
+            </div>
+
+            {/* Product Grid */}
+            <div>
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
+                </div>
+              ) : paged.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-white/50 rounded-3xl border-2 border-dashed border-[#fce7f3]">
+                  <span className="text-5xl mb-4">🧺</span>
+                  <p className="text-base font-bold text-gray-400">
+                    Hết hàng rồi, bạn quay lại sau nhé!
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {paged.map(p => (
+                    <div
+                      key={p.id}
+                      className="product-card bg-white rounded-2xl overflow-hidden"
+                      style={{
+                        border: "1.5px solid #fce7f3",
+                        boxShadow: "0 2px 8px rgba(236,72,153,0.06)"
+                      }}
+                      onClick={() => navigate(`/product/${p.id}`)}
+                    >
+                      {/* Image */}
+                      <div className="overflow-hidden rounded-t-xl" style={{ background: "#fff5f9" }}>
+                        <img
+                          src={p.image}
+                          alt={p.name}
+                          className="product-img aspect-[3/4] w-full object-cover"
+                        />
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-2.5">
+                        <p className="text-[11px] font-bold line-clamp-2 leading-tight mb-1 text-gray-700 h-8">
+                          {p.name}
+                        </p>
+
+                        <div className="flex items-center gap-1 mb-2">
+                          <Star size={9} className="text-[#fbbf24] fill-[#fbbf24]" />
+                          <span className="text-[10px] font-bold text-gray-400">
+                            {p.rating}
+                          </span>
+                          <span className="badge-sold ml-auto">Đã bán {p.sold}</span>
+                        </div>
+
+                        <p className="text-[13px] font-black text-[#ec4899]">
+                          {Number(p.price).toLocaleString()}₫
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-10">
+                <button
+                  className="page-btn flex items-center justify-center w-9 h-9 rounded-xl font-bold bg-white text-[#ec4899] border border-[#fce7f3]"
+                  onClick={() => setPage(p => p - 1)}
+                  disabled={page === 1}
+                  style={{ opacity: page === 1 ? 0.5 : 1 }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPage(i + 1)}
+                    className={`page-btn w-9 h-9 rounded-xl text-xs font-black transition-all
+                              ${page === i + 1 ? "active" : "bg-white text-gray-500 border border-[#fce7f3]"}`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+
+                <button
+                  className="page-btn flex items-center justify-center w-9 h-9 rounded-xl font-bold bg-white text-[#ec4899] border border-[#fce7f3]"
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page === totalPages}
+                  style={{ opacity: page === totalPages ? 0.5 : 1 }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
+          </section>
         </div>
-
-        {/* ===== PAGINATION ===== */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-1.5 mt-6 px-4">
-            <button
-              className="page-btn flex items-center justify-center w-8 h-8 rounded-xl font-bold"
-              style={{
-                background: "#fce7f3",
-                color: page === 1 ? "#fca5a5" : "#ec4899",
-                opacity: page === 1 ? 0.45 : 1,
-                border: "none",
-                cursor: page === 1 ? "not-allowed" : "pointer"
-              }}
-              onClick={() => setPage(p => p - 1)}
-              disabled={page === 1}
-            >
-              <ChevronLeft size={16} />
-            </button>
-
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setPage(i + 1)}
-                className={`page-btn w-8 h-8 rounded-xl text-xs font-black ${page === i + 1 ? "active" : ""}`}
-                style={
-                  page === i + 1
-                    ? {}
-                    : { background: "#fff", color: "#71717a", border: "1.5px solid #fce7f3" }
-                }
-              >
-                {i + 1}
-              </button>
-            ))}
-
-            <button
-              className="page-btn flex items-center justify-center w-8 h-8 rounded-xl font-bold"
-              style={{
-                background: "#fce7f3",
-                color: page === totalPages ? "#fca5a5" : "#ec4899",
-                opacity: page === totalPages ? 0.45 : 1,
-                border: "none",
-                cursor: page === totalPages ? "not-allowed" : "pointer"
-              }}
-              onClick={() => setPage(p => p + 1)}
-              disabled={page === totalPages}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-
       </div>
     </>
   );

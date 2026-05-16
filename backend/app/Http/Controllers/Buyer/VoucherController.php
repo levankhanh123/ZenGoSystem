@@ -12,13 +12,11 @@ class VoucherController extends Controller
     /**
      * GET /api/vouchers
      * Trả về danh sách voucher đang hoạt động (public)
-     * Query params:
-     *   - loai: loai_voucher (tuỳ chọn)
-     *   - per_page: số lượng mỗi trang (default 12)
      */
     public function index(Request $request)
     {
         $now = now();
+        $user = auth('sanctum')->user();
 
         $query = DB::table('voucher')
             ->where('trang_thai', 'dang_dien_ra')
@@ -28,6 +26,13 @@ class VoucherController extends Controller
 
         if ($request->filled('loai')) {
             $query->where('loai', $request->loai);
+        }
+
+        if ($request->filled('q')) {
+            $query->where(function($q) use ($request) {
+                $q->where('ma_voucher', 'like', '%' . $request->q . '%')
+                  ->orWhere('ten_voucher', 'like', '%' . $request->q . '%');
+            });
         }
 
         $vouchers = $query
@@ -40,12 +45,80 @@ class VoucherController extends Controller
             ->orderByDesc('gia_tri_voucher')
             ->paginate($request->get('per_page', 12));
 
+        if ($user) {
+            $collectedVoucherIds = DB::table('nguoi_dung_voucher')
+                ->where('nguoi_dung_id', $user->id)
+                ->pluck('voucher_id')
+                ->toArray();
+
+            $vouchers->getCollection()->transform(function($v) use ($collectedVoucherIds) {
+                $v->is_collected = in_array($v->id, $collectedVoucherIds);
+                return $v;
+            });
+        }
+
         return response()->json($vouchers);
     }
 
     /**
+     * POST /api/vouchers/collect
+     */
+    public function collect(Request $request)
+    {
+        $request->validate([
+            'voucher_id' => 'required|exists:voucher,id'
+        ]);
+
+        $user = $request->user();
+        $voucherId = $request->voucher_id;
+
+        // Check if already collected
+        $exists = DB::table('nguoi_dung_voucher')
+            ->where('nguoi_dung_id', $user->id)
+            ->where('voucher_id', $voucherId)
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['message' => 'Bạn đã thu thập voucher này rồi'], 422);
+        }
+
+        // Check voucher availability
+        $voucher = DB::table('voucher')->find($voucherId);
+        
+        if (!$voucher || $voucher->trang_thai !== 'dang_dien_ra') {
+            return response()->json(['message' => 'Voucher không khả dụng'], 422);
+        }
+
+        if ($voucher->so_luong_con_lai <= 0) {
+            return response()->json(['message' => 'Voucher đã hết lượt'], 422);
+        }
+
+        // Transaction
+        DB::beginTransaction();
+        try {
+            DB::table('nguoi_dung_voucher')->insert([
+                'nguoi_dung_id' => $user->id,
+                'voucher_id'    => $voucherId,
+                'trang_thai'    => 'chua_dung',
+                'ngay_thu_thap' => now(),
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+
+            DB::table('voucher')
+                ->where('id', $voucherId)
+                ->decrement('so_luong_con_lai');
+
+            DB::commit();
+            return response()->json(['message' => 'Thu thập voucher thành công!']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Có lỗi xảy ra: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * GET /api/vouchers/types
-     * Trả về danh sách loại voucher để filter
      */
     public function types()
     {
@@ -60,7 +133,6 @@ class VoucherController extends Controller
 
     /**
      * GET /api/vouchers/{id}
-     * Chi tiết 1 voucher (dùng khi apply vào đơn hàng)
      */
     public function show($id)
     {
@@ -75,8 +147,6 @@ class VoucherController extends Controller
 
     /**
      * POST /api/vouchers/check
-     * Kiểm tra mã voucher có hợp lệ không trước khi apply
-     * Body: { ma_voucher, tong_tien }
      */
     public function check(Request $request)
     {
@@ -108,6 +178,48 @@ class VoucherController extends Controller
         // Hết số lượng
         if ($voucher->so_luong_con_lai <= 0) {
             return response()->json(['valid' => false, 'message' => 'Voucher đã hết lượt sử dụng'], 422);
+        }
+
+        // --- Kiểm tra điều kiện Shop tham gia chiến dịch ---
+        $user = auth('sanctum')->user();
+        if ($user) {
+            // Lấy danh sách Shop ID có sản phẩm trong giỏ hàng hiện tại
+            $cartShopIds = DB::table('chi_tiet_gio_hang')
+                ->join('gio_hang', 'chi_tiet_gio_hang.gio_hang_id', '=', 'gio_hang.id')
+                ->join('san_pham', 'chi_tiet_gio_hang.san_pham_id', '=', 'san_pham.id')
+                ->where('gio_hang.nguoi_mua_id', $user->id)
+                ->distinct()
+                ->pluck('san_pham.cua_hang_id')
+                ->toArray();
+
+            if (!empty($cartShopIds)) {
+                // Nếu là Voucher Shop (Shop tự tạo)
+                if ($voucher->cua_hang_id) {
+                    if (!in_array($voucher->cua_hang_id, $cartShopIds)) {
+                        return response()->json(['valid' => false, 'message' => 'Voucher này chỉ áp dụng cho sản phẩm của Shop sở hữu.'], 422);
+                    }
+                } 
+                // Nếu là Voucher Sàn (Admin tạo) và có liên kết chiến dịch
+                elseif ($voucher->campaign_id) {
+                    $registeredShopIds = DB::table('dang_ky_chien_dich')
+                        ->where('campaign_id', $voucher->campaign_id)
+                        ->where('trang_thai', 'da_duyet')
+                        ->pluck('cua_hang_id')
+                        ->toArray();
+                    
+                    $hasRegisteredShop = false;
+                    foreach ($cartShopIds as $shopId) {
+                        if (in_array($shopId, $registeredShopIds)) {
+                            $hasRegisteredShop = true;
+                            break;
+                        }
+                    }
+
+                    if (!$hasRegisteredShop) {
+                        return response()->json(['valid' => false, 'message' => 'Voucher sàn này chỉ áp dụng khi mua hàng từ các Shop tham gia chiến dịch.'], 422);
+                    }
+                }
+            }
         }
 
         // Không đủ giá trị đơn tối thiểu

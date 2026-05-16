@@ -45,13 +45,21 @@ export default function Login() {
       const token = localStorage.getItem("token");
       onLogin(token);
 
-      navigate("/");
+      // Điều hướng dựa trên vai trò
+      if (result.user.vai_tro === "admin") {
+        navigate("/admin");
+      } else if (result.user.vai_tro === "shipper") {
+        navigate("/shipper");
+      } else {
+        // Seller và User thường sẽ vào trang chủ trước
+        navigate("/");
+      }
     }
   };
 
   return (
     <AuthLayout
-      title="Chào mừng trở lại! 👋"
+      title="Chào mừng trở lại!"
       subtitle="Đăng nhập để tiếp tục mua sắm tại ZenGo"
       switchText="Chưa có tài khoản?"
       switchLink="/register"
@@ -145,11 +153,7 @@ export default function Login() {
 
         <Divider />
 
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-xs text-blue-700">
-          <p className="font-bold mb-1">🧪 Tài khoản demo:</p>
-          <p>Email: <strong>buyer1@gmail.com</strong></p>
-          <p>Mật khẩu: <strong>password123</strong></p>
-        </div>
+
       </form>
     </AuthLayout>
   );

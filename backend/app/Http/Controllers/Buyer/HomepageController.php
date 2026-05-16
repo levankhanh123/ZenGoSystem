@@ -1,3 +1,5 @@
+<?php
+
 namespace App\Http\Controllers\Buyer;
 
 use App\Http\Controllers\Controller;
@@ -136,7 +138,7 @@ class HomepageController extends Controller
                 FROM san_pham sp
                 INNER JOIN cua_hang ch
                     ON ch.id = sp.cua_hang_id
-                    AND ch.trang_thai = 'hoat_dong'
+                    AND ch.trang_thai IN ('active', 'da_duyet')
                 INNER JOIN danh_muc dm
                     ON dm.id = sp.danh_muc_id
                 LEFT JOIN chi_tiet_don_hang ctdh

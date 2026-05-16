@@ -119,7 +119,7 @@ export default function ProductDetail() {
 
   const handleBuyNow = () => {
     handleAddToCart();
-    navigate("/gio-hang");
+    navigate("/cart");
   };
 
   // ── Submit đánh giá ───────────────────────────────────
@@ -373,13 +373,6 @@ export default function ProductDetail() {
                 ) : (
                   <span className="text-red-500 font-medium">Hết hàng</span>
                 )}
-                {product.khoi_luong && (
-                  <>
-                    <span className="text-gray-200 mx-1">|</span>
-                    <Weight size={14} className="text-gray-400" />
-                    <span className="text-gray-500">{product.khoi_luong}g</span>
-                  </>
-                )}
               </div>
 
               {/* Quantity */}
@@ -442,31 +435,69 @@ export default function ProductDetail() {
 
               {/* Shop info */}
               {product.cua_hang && (
-                <div
-                  onClick={() => navigate(`/shop/${product.cua_hang.id}`)}
-                  className="flex items-center gap-3 p-4 border border-gray-100 rounded-2xl
-                    hover:border-pink-200 cursor-pointer transition-all group"
-                >
-                  {product.cua_hang.logo ? (
-                    <img
-                      src={product.cua_hang.logo}
-                      alt=""
-                      className="w-10 h-10 rounded-full object-cover border border-gray-100"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
-                      <Store size={18} className="text-[#e8175d]" />
+                <div className="mt-2 p-5 border border-pink-100 rounded-3xl bg-gradient-to-br from-white to-pink-50/30 shadow-sm">
+                  <div className="flex items-center gap-4 mb-4">
+                    {product.cua_hang.logo ? (
+                      <img
+                        src={product.cua_hang.logo}
+                        alt=""
+                        className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl bg-pink-100 flex items-center justify-center border-2 border-white shadow-sm">
+                        <Store size={24} className="text-[#e8175d]" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold text-gray-800 truncate mb-0.5">
+                        {product.cua_hang.ten_cua_hang}
+                      </h3>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                          <Package size={10} /> {product.cua_hang.so_san_pham ?? 0} sản phẩm
+                        </span>
+                        <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                          <Star size={10} className="text-yellow-400 fill-yellow-400" /> 
+                          {Number(product.cua_hang.rating_trung_binh ?? 0).toFixed(1)} đánh giá
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 group-hover:text-[#e8175d] transition-colors truncate">
-                      {product.cua_hang.ten_cua_hang}
-                    </p>
-                    {product.cua_hang.so_dien_thoai && (
-                      <p className="text-xs text-gray-400">{product.cua_hang.so_dien_thoai}</p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/shop/${product.cua_hang.id}`)}
+                      className="flex-1 flex items-center justify-center gap-2 bg-white border border-[#e8175d] 
+                        text-[#e8175d] text-xs font-bold py-2.5 rounded-xl hover:bg-pink-50 transition-all"
+                    >
+                      <Store size={14} />
+                      Xem cửa hàng
+                    </button>
+                    {Number(product.cua_hang?.nguoi_ban_id) !== Number(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).id : 0) && (
+                      <button
+                        onClick={() => {
+                          const token = localStorage.getItem("token");
+                          if (!token) {
+                            navigate("/login");
+                            return;
+                          }
+                          if (!product.cua_hang?.id) return;
+                          window.dispatchEvent(new CustomEvent("open-chat", {
+                            detail: { 
+                              shopId: product.cua_hang.id, 
+                              productId: product.id,
+                              productName: product.ten_san_pham,
+                              productImage: product.hinh_dai_dien
+                            }
+                          }));
+                        }}
+                        className="px-4 flex items-center justify-center bg-gray-50 border border-gray-200 
+                          text-gray-600 text-xs font-bold py-2.5 rounded-xl hover:bg-gray-100 transition-all"
+                      >
+                        Chat ngay
+                      </button>
                     )}
                   </div>
-                  <ChevronLeft size={14} className="text-gray-300 rotate-180 group-hover:text-[#e8175d] transition-colors" />
                 </div>
               )}
             </div>
@@ -498,8 +529,10 @@ export default function ProductDetail() {
           {/* Tab body */}
           <div className="p-6 lg:p-10">
             {tab === "mo_ta" ? (
-              <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-line">
-                {product.mo_ta || (
+              <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed">
+                {product.mo_ta ? (
+                  <div dangerouslySetInnerHTML={{ __html: product.mo_ta }} />
+                ) : (
                   <p className="text-gray-400 italic">Chưa có mô tả sản phẩm.</p>
                 )}
               </div>

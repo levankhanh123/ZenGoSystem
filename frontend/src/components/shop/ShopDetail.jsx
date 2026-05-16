@@ -31,7 +31,7 @@ export default function ShopDetail() {
   const [prodLoading, setProdLoading] = useState(false);
 
   // Filters
-  const [categoryId, setCategoryId] = useState("");
+  const [shopCategoryId, setShopCategoryId] = useState("");
   const [sort, setSort]             = useState("moi_nhat");
   const [q, setQ]                   = useState("");
   const [search, setSearch]         = useState("");
@@ -48,11 +48,11 @@ export default function ShopDetail() {
   useEffect(() => {
     if (!data) return;
     fetchData(false);
-  }, [categoryId, sort, search, page]);
+  }, [shopCategoryId, sort, search, page]);
 
   const fetchData = (initial = false) => {
     const params = { sort, page, per_page: 12 };
-    if (categoryId) params.category_id = categoryId;
+    if (shopCategoryId) params.shop_category_id = shopCategoryId;
     if (search)     params.q = search;
 
     if (initial) setLoading(true);
@@ -74,7 +74,7 @@ export default function ShopDetail() {
   };
 
   const handleCategory = (catId) => {
-    setCategoryId(catId === categoryId ? "" : catId);
+    setShopCategoryId(catId === shopCategoryId ? "" : catId);
     setPage(1);
   };
 
@@ -86,8 +86,30 @@ export default function ShopDetail() {
   if (loading) return <LoadingSkeleton />;
   if (!data)   return <NotFound />;
 
-  const { shop, categories, products } = data;
+  const { shop, categories, vouchers, products } = data;
   const meta = products;
+
+  // Join Date calculation
+  const getJoinDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    const start = new Date(dateStr);
+    const now = new Date();
+    const diffMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+    if (diffMonths < 1) return "Tháng này";
+    if (diffMonths < 12) return `${diffMonths} tháng trước`;
+    const years = Math.floor(diffMonths / 12);
+    return `${years} năm trước`;
+  };
+
+  const handleCollectVoucher = async (vId) => {
+    try {
+      await ApiService.collectVoucher(vId);
+      // Refresh data to show collected state
+      fetchData(true);
+    } catch (err) {
+      alert(err.response?.data?.message || "Không thể thu thập voucher");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#fdf5f0]">
@@ -106,121 +128,136 @@ export default function ShopDetail() {
           </button>
 
           {/* Shop info */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            {/* Logo */}
-            {shop.logo ? (
-              <img
-                src={shop.logo}
-                alt={shop.ten_cua_hang}
-                className="w-20 h-20 rounded-2xl object-cover border-4 border-white/30 shadow-xl shrink-0"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur
-                flex items-center justify-center shrink-0 border-4 border-white/20">
-                <Store size={32} className="text-white" />
-              </div>
-            )}
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+            <div className="flex items-center gap-5 flex-1 min-w-0">
+              {/* Logo */}
+              {shop.logo ? (
+                <img
+                  src={shop.logo}
+                  alt={shop.ten_cua_hang}
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover border-4 border-white/30 shadow-2xl shrink-0"
+                />
+              ) : (
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/20 backdrop-blur
+                  flex items-center justify-center shrink-0 border-4 border-white/20">
+                  <Store size={36} className="text-white" />
+                </div>
+              )}
 
-            {/* Text */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight mb-1">
-                {shop.ten_cua_hang}
-              </h1>
-              {shop.dia_chi_lay_hang && (
-                <p className="text-pink-100 text-sm mb-3">
-                  📍 {shop.dia_chi_lay_hang}
-                </p>
-              )}
-              {shop.mo_ta && (
-                <p className="text-pink-100 text-sm leading-relaxed line-clamp-2 max-w-xl">
-                  {shop.mo_ta}
-                </p>
-              )}
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl sm:text-4xl font-black text-white leading-tight mb-2">
+                  {shop.ten_cua_hang}
+                </h1>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mb-3">
+                  <p className="text-pink-100 text-sm flex items-center gap-1.5">
+                    <span className="opacity-70">📅</span> Tham gia: {getJoinDate(shop.created_at)}
+                  </p>
+                  {shop.dia_chi_lay_hang && (
+                    <p className="text-pink-100 text-sm flex items-center gap-1.5">
+                      <span className="opacity-70">📍</span> {shop.dia_chi_lay_hang}
+                    </p>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <button className="bg-white text-[#e8175d] px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-black/5 hover:bg-pink-50 transition-all active:scale-95">
+                    + Theo dõi
+                  </button>
+                  {Number(shop.nguoi_ban_id) !== Number(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).id : 0) && (
+                    <button 
+                      onClick={() => {
+                        const token = localStorage.getItem("token");
+                        if (!token) {
+                          navigate("/login");
+                          return;
+                        }
+                        if (!shop.id) return;
+                        window.dispatchEvent(new CustomEvent("open-chat", {
+                          detail: { shopId: shop.id }
+                        }));
+                      }}
+                      className="bg-white/20 backdrop-blur text-white border border-white/30 px-6 py-2 rounded-xl text-sm font-bold hover:bg-white/30 transition-all active:scale-95"
+                    >
+                      Chat ngay
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Stats */}
-            <div className="flex gap-4 sm:gap-6 shrink-0">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4 w-full lg:w-auto">
               <ShopStat icon={<Package size={16} />}     label="Sản phẩm" value={shop.so_san_pham} />
               <ShopStat icon={<ShoppingBag size={16} />} label="Đã bán"   value={shop.tong_don} />
-              {shop.rating_trung_binh > 0 && (
-                <ShopStat icon={<Star size={16} />}      label="Đánh giá" value={shop.rating_trung_binh.toFixed(1)} />
-              )}
+              <ShopStat icon={<Star size={16} />}      label="Đánh giá" value={shop.rating_trung_binh > 0 ? shop.rating_trung_binh.toFixed(1) : "N/A"} />
             </div>
           </div>
         </div>
       </div>
 
+      {/* ── Vouchers Section ── */}
+      {vouchers && vouchers.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 overflow-x-auto no-scrollbar">
+          <div className="flex gap-4">
+            {vouchers.map((v) => (
+              <div key={v.id} className="min-w-[280px] bg-white border border-pink-100 rounded-2xl p-4 flex gap-3 shadow-sm">
+                <div className="w-12 h-12 bg-pink-50 rounded-xl flex items-center justify-center shrink-0">
+                  <span className="text-[#e8175d] font-black text-lg">%</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-800 mb-0.5">Giảm {formatVND(v.gia_tri_voucher)}</p>
+                  <p className="text-[11px] text-gray-400 mb-2 truncate">Đơn tối thiểu {formatVND(v.gia_tri_don_toi_thieu)}</p>
+                  <button
+                    onClick={() => !v.is_collected && handleCollectVoucher(v.id)}
+                    className={`text-[10px] font-bold px-3 py-1 rounded-lg transition-all ${
+                      v.is_collected 
+                        ? "bg-gray-100 text-gray-400 cursor-default"
+                        : "bg-[#e8175d] text-white hover:bg-[#c0114d]"
+                    }`}
+                  >
+                    {v.is_collected ? "Đã lưu" : "Lưu mã"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Body ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-20">
         <div className="flex flex-col lg:flex-row gap-6">
 
           {/* ── LEFT: Filter sidebar ── */}
-          <aside className="lg:w-52 shrink-0">
-            {/* Mobile toggle */}
-            <button
-              onClick={() => setShowFilter(!showFilter)}
-              className="lg:hidden w-full flex items-center justify-between
-                bg-white rounded-2xl px-4 py-3 shadow-sm mb-3 text-sm font-semibold text-gray-700"
-            >
-              <span className="flex items-center gap-2">
-                <SlidersHorizontal size={14} className="text-[#e8175d]" />
-                Lọc & sắp xếp
-              </span>
-              {(categoryId || sort !== "moi_nhat") && (
-                <span className="w-5 h-5 bg-[#e8175d] text-white text-[10px] font-bold
-                  rounded-full flex items-center justify-center">!</span>
-              )}
-            </button>
-
-            <div className={`${showFilter ? "block" : "hidden"} lg:block`}>
-              {/* Danh mục */}
-              {categories.length > 0 && (
-                <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
-                  <h4 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-3">
-                    Danh mục
-                  </h4>
+          <aside className="lg:w-60 shrink-0">
+            {/* Categories */}
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 mb-4 sticky top-4">
+              <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-4">
+                Danh mục của shop
+              </h4>
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => handleCategory("")}
+                  className={`w-full text-left text-sm px-4 py-2.5 rounded-2xl transition-all
+                    ${!shopCategoryId
+                      ? "bg-[#e8175d] text-white font-bold shadow-lg shadow-pink-100"
+                      : "text-gray-600 hover:bg-pink-50 hover:text-[#e8175d]"
+                    }`}
+                >
+                  Tất cả sản phẩm
+                </button>
+                {categories.map((c) => (
                   <button
-                    onClick={() => handleCategory("")}
-                    className={`w-full text-left text-sm px-3 py-2 rounded-xl mb-1 font-semibold transition-all
-                      ${!categoryId
-                        ? "bg-[#e8175d] text-white"
+                    key={c.id}
+                    onClick={() => handleCategory(String(c.id))}
+                    className={`w-full text-left text-sm px-4 py-2.5 rounded-2xl transition-all
+                      ${shopCategoryId === String(c.id)
+                        ? "bg-[#e8175d] text-white font-bold shadow-lg shadow-pink-100"
                         : "text-gray-600 hover:bg-pink-50 hover:text-[#e8175d]"
                       }`}
                   >
-                    Tất cả
-                  </button>
-                  {categories.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => handleCategory(String(c.id))}
-                      className={`w-full text-left text-sm px-3 py-2 rounded-xl mb-1 transition-all
-                        ${categoryId === String(c.id)
-                          ? "bg-[#e8175d] text-white font-semibold"
-                          : "text-gray-600 hover:bg-pink-50 hover:text-[#e8175d]"
-                        }`}
-                    >
-                      {c.ten_danh_muc}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Sắp xếp */}
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
-                <h4 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-3">
-                  Sắp xếp
-                </h4>
-                {SORT_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    onClick={() => handleSort(o.value)}
-                    className={`w-full text-left text-sm px-3 py-2 rounded-xl mb-1 transition-all
-                      ${sort === o.value
-                        ? "bg-[#e8175d] text-white font-semibold"
-                        : "text-gray-600 hover:bg-pink-50 hover:text-[#e8175d]"
-                      }`}
-                  >
-                    {o.label}
+                    {c.ten_danh_muc}
                   </button>
                 ))}
               </div>
@@ -229,39 +266,37 @@ export default function ShopDetail() {
 
           {/* ── RIGHT: Products ── */}
           <div className="flex-1 min-w-0">
-
-            {/* Search bar + active filters */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-5">
-              <form onSubmit={handleSearch} className="flex flex-1 gap-2">
-                <div className="flex-1 flex items-center gap-2 bg-white rounded-2xl px-4 shadow-sm border border-gray-100">
-                  <Search size={14} className="text-gray-400 shrink-0" />
+            {/* Tabs & Search */}
+            <div className="bg-white rounded-3xl p-2 shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-2">
+              <div className="flex p-1 bg-gray-50 rounded-2xl flex-1">
+                {SORT_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    onClick={() => handleSort(o.value)}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all
+                      ${sort === o.value
+                        ? "bg-white text-[#e8175d] shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                      }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <form onSubmit={handleSearch} className="flex p-1 gap-1">
+                <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-4 flex-1">
+                  <Search size={14} className="text-gray-400" />
                   <input
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    placeholder="Tìm sản phẩm trong shop..."
-                    className="flex-1 py-2.5 text-sm outline-none bg-transparent
-                      text-gray-700 placeholder-gray-400"
+                    placeholder="Tìm trong shop..."
+                    className="bg-transparent border-none outline-none py-2 text-xs w-full sm:w-32 lg:w-48"
                   />
-                  {q && (
-                    <button type="button" onClick={() => { setQ(""); setSearch(""); setPage(1); }}>
-                      <X size={13} className="text-gray-400 hover:text-gray-600" />
-                    </button>
-                  )}
                 </div>
-                <button
-                  type="submit"
-                  className="bg-[#e8175d] text-white text-sm font-bold px-5 rounded-2xl
-                    hover:bg-[#c0114d] active:scale-95 transition-all shadow-sm"
-                >
+                <button className="bg-[#e8175d] text-white px-5 rounded-2xl text-xs font-bold hover:bg-[#c0114d]">
                   Tìm
                 </button>
               </form>
-
-              {meta && (
-                <span className="text-sm text-gray-400 flex items-center shrink-0">
-                  <strong className="text-gray-700 mr-1">{meta.total}</strong> sản phẩm
-                </span>
-              )}
             </div>
 
             {/* Grid */}
