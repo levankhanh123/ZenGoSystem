@@ -1,0 +1,383 @@
+[
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update Campaigns.jsx state for pagination and refresh.\"",
+      "Instruction": "\"Add state for campaign pagination, registration pagination, and global stats. Add mounted ref. Add handleRefresh methods.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":242,\"ReplacementContent\":\"    const mounted = useRef(true);\\n    const [campaigns, setCampaigns] = useState([]);\\n    const [registrations, setRegistrations] = useState([]);\\n    const [campaignFilters, setCampaignFilters]\n<truncated 1670 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Updating Campaigns.jsx state and adding useRef import\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update Campaigns.jsx fetch logic for pagination.\"",
+      "Instruction": "\"Update loadCampaigns and loadRegistrations to use page and per_page. Update stats state. Add refresh methods. Add mounted ref pattern.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":313,\"ReplacementContent\":\"    useEffect(() => {\\n        mounted.current = true;\\n        return () => {\\n            mounted.current = false;\\n        };\\n    }, []);\\n\\n    const loadCampaigns = async () => {\\n        se\n<truncated 7071 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Updating Campaigns.jsx load methods and refresh handlers\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update Campaigns.jsx fetch logic and summary mapping.\"",
+      "Instruction": "\"Update useEffect blocks for campaigns and registrations to support pagination and stats. Update summary useMemo to use stats from backend. Add refresh handlers.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":321,\"ReplacementContent\":\"    useEffect(() => {\\n        mounted.current = true;\\n        return () => {\\n            mounted.current = false;\\n        };\\n    }, []);\\n\\n    const loadCampaigns = async () => {\\n        se\n<truncated 8124 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Updating Campaigns.jsx fetch logic and summary mapping with exact chunks\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Optimize bulk registration updates and add pagination UI to Campaigns.jsx.\"",
+      "Instruction": "\"Update handleBulkRegistrationStatus to use the new bulk backend endpoint. Add pagination controls to campaign and registration tables. Add refresh buttons.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":629,\"ReplacementContent\":\"    async function handleBulkRegistrationStatus(trang_thai) {\\n        if (selectedRegistrationIds.length === 0) {\\n            setError(\\\"Hãy chọn ít nhất một hồ sơ để cập nhật \n<truncated 11432 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Updating Campaigns.jsx for bulk optimization and pagination UI\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix JSX structure for campaigns and registrations in Campaigns.jsx.\"",
+      "Instruction": "\"Restore section tags and ensure correct JSX nesting for both campaign list and registrations list. Add pagination UI inside the sections.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":826,\"ReplacementContent\":\"                    {showCampaignList ? (\\n                        <section className={`${adminStyles.tableCard} p-5 md:p-6`}>\\n                            <div className=\\\"mb-4 flex flex-col gap-\n<truncated 45929 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Fixing broken JSX structure in Campaigns.jsx with careful restoration of sections\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Clean up duplicate closing tags in Campaigns.jsx.\"",
+      "Instruction": "\"Remove extra ternary closing tags that were duplicated during previous edits. Fix JSX indentation and balance.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":851,\"ReplacementContent\":\"                        </section>\\n                    ) : null}\\n\\n                    {showRegistrations ? (\",\"StartLine\":848,\"TargetContent\":\"                        </section>\\n              \n<truncated 456 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Cleaning up duplicate ternary closing tags in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Use the new bulk update API for registrations.\"",
+      "EndLine": "646",
+      "Instruction": "\"Replace the Promise.all loop with a single call to the new bulk-update API endpoint. This improves performance and ensures atomic updates through a single transaction on the backend. For 'rejected' status, it uses the reason from the first selected item i\n<truncated 13 bytes>",
+      "ReplacementContent": "\"        try {\\n            // For bulk reject, we'll take the reason from the first selected item that has one\\n            const firstWithReason = selectedItems.find(item => registrationDrafts[item.id]?.ly_do_tu_choi?.trim());\\n            const commonRe\n<truncated 721 bytes>",
+      "StartLine": "625",
+      "TargetContent": "\"        try {\\n            const responses = await Promise.all(\\n                selectedItems.map((item) =>\\n                    put(`/api/admin/campaign-registrations/${item.id}`, {\\n                        trang_thai,\\n                        ly_do_tu_\n<truncated 716 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Optimizing bulk registration update to use single API call\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Synchronize registrations with selected campaign and improve data loading logic.\"",
+      "Instruction": "\"Update loadRegistrations to pass selectedCampaignId to the API and fix the useEffect dependencies to ensure registrations are reloaded whenever a different campaign is selected. This enables true server-side filtering by campaign.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":343,\"ReplacementContent\":\"                trang_thai: registrationFilters.registrationStatus,\\n                campaign_id: selectedCampaignId || undefined,\\n                page: registrationPage,\\n                per_pag\n<truncated 632 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Updating frontend registration loading logic in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Simplify registration filtering and add direct campaign selector.\"",
+      "Instruction": "\"Remove frontend-only filtering for registrations since it's now handled server-side. Add a direct campaign selection dropdown in the registrations view to allow admins to switch campaigns without leaving the page.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":399,\"ReplacementContent\":\"    const filteredRegistrations = registrations;\",\"StartLine\":393,\"TargetContent\":\"    const filteredRegistrations = useMemo(() => {\\n        if (!selectedCampaignId) {\\n            return registr\n<truncated 2731 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Simplifying registration filters and adding campaign selector dropdown\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Show shop reputation metrics in registration cards.\"",
+      "EndLine": "930",
+      "Instruction": "\"Display shop order counts and completion rates in the registration cards to help admins evaluate the reliability of the participating shops.\"",
+      "ReplacementContent": "\"                                                        <div>\\n                                                            <p className=\\\"font-semibold text-slate-800\\\">{registration.shop?.ten_cua_hang || \\\"Shop không xác định\\\"}</p>\\n               \n<truncated 2731 bytes>",
+      "StartLine": "925",
+      "TargetContent": "\"                                                        <div>\\n                                                            <p className=\\\"font-semibold text-slate-800\\\">{registration.shop?.ten_cua_hang || \\\"Shop không xác định\\\"}</p>\\n               \n<truncated 465 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Adding shop reputation metrics to registration cards in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Implement CSV export for campaign registrations.\"",
+      "Instruction": "\"Add a helper function to export registrations to CSV and integrate an export button in the UI. This allows admins to download the current view for reporting purposes.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":605,\"ReplacementContent\":\"    function toggleAllRegistrationSelections() {\\n        if (allVisibleRegistrationsSelected) {\\n            setSelectedRegistrationIds([]);\\n            return;\\n        }\\n\\n        setSelected\n<truncated 3624 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Implementing CSV export for campaign registrations in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add confirmation modal for bulk registration actions.\"",
+      "Instruction": "\"Implement a confirmation dialog before performing bulk registration updates to prevent accidental actions. This enhances the professional feel of the admin interface and improves user safety.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":250,\"ReplacementContent\":\"    const [bulkUpdatingRegistrations, setBulkUpdatingRegistrations] = useState(false);\\n    const [confirmModal, setConfirmModal] = useState({ show: false, status: \\\"\\\", count: 0 });\",\"StartLine\":\n<truncated 5156 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Implementing custom confirmation modal for bulk actions in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add confirmation modal for bulk registration actions.\"",
+      "Instruction": "\"Implement a confirmation dialog before performing bulk registration updates to prevent accidental actions. This enhances the professional feel of the admin interface and improves user safety.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":250,\"ReplacementContent\":\"    const [bulkUpdatingRegistrations, setBulkUpdatingRegistrations] = useState(false);\\n    const [confirmModal, setConfirmModal] = useState({ show: false, status: \\\"\\\", count: 0 });\",\"StartLine\":\n<truncated 5156 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Retrying custom confirmation modal implementation in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Add confirmation modal JSX at the end of the Campaigns component.\"",
+      "EndLine": "1146",
+      "Instruction": "\"Insert the confirmation modal JSX before the final closing tags of the Campaigns component. This ensures the modal is rendered within the component's scope and correctly positioned.\"",
+      "ReplacementContent": "\"            ) : null}\\n\\n            {/* Modal xác nhận */}\\n            {confirmModal.show && (\\n                <div className=\\\"fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm\\\">\\n                    <div clas\n<truncated 2351 bytes>",
+      "StartLine": "1143",
+      "TargetContent": "\"            ) : null}\\n        </div>\\n    );\\n}\"",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Inserting confirmation modal JSX into Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Remove duplicate export statement.\"",
+      "EndLine": "1183",
+      "Instruction": "\"The Campaigns component is already exported at the point of its definition. Removing the redundant export at the end of the file to fix the 'multiple default exports' error.\"",
+      "ReplacementContent": "\"}\"",
+      "StartLine": "1181",
+      "TargetContent": "\"}\\n\\nexport default Campaigns;\"",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "TargetLintErrorIds": "[\"ef0e3110-f448-422f-974a-310fc883a789\"]",
+      "toolAction": "\"Removing redundant default export in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add states and filters for Shop Voucher management.\"",
+      "Instruction": "\"Introduce new state variables and filter options specifically for managing shop-created vouchers. This includes state for the voucher list, total count, loading status, and a dedicated filter object for shop vouchers.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":14,\"ReplacementContent\":\"const campaignStatusOptions = [\\n    { value: \\\"\\\", label: \\\"Tất cả trạng thái\\\" },\\n    { value: \\\"dang_mo_dang_ky\\\", label: \\\"Mở đăng ký\\\" },\\n    { value: \\\"dang_dien_ra\\\", label: \\\"\n<truncated 4127 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Adding Shop Voucher management states and filters to Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix duplicate filter declarations and integrate shop vouchers into URL state.\"",
+      "Instruction": "\"Consolidate filter declarations to avoid redeclaration errors and ensure all filter states (Campaigns, Registrations, and Shop Vouchers) are properly managed via the useUrlFilterState hook. This also correctly integrates them into the saved views system.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":238,\"ReplacementContent\":\"    const [campaignFilters, setCampaignFilters] = useUrlFilterState({\\n        campaignKeyword: \\\"\\\",\\n        campaignType: \\\"\\\",\\n        campaignStatus: \\\"\\\",\\n    });\\n    const [registrationF\n<truncated 3404 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "TargetLintErrorIds": "[\"045ca313-8a88-465a-bbb9-a0603aef50a9\",\"87c2a8bf-0090-461d-a32a-127192935672\",\"3f91f7f4-7a09-4b80-92fc-59d84fea3777\",\"af7babbc-7878-4628-b129-9c4378b622c2\"]",
+      "toolAction": "\"Fixing filter redeclaration and integrating shop vouchers into URL state in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Implement Shop Voucher data fetching and locking logic.\"",
+      "Instruction": "\"Add the loadShopVouchers function and its associated useEffect to handle fetching data from the new endpoint. Implement the locking and unlocking handlers, including a confirmation modal with reason input. Update the view visibility flags to include the n\n<truncated 23 bytes>",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":402,\"ReplacementContent\":\"    useEffect(() => {\\n        loadRegistrations();\\n    }, [registrationFilters.registrationKeyword, registrationFilters.registrationStatus, registrationPage, selectedCampaignId]);\\n\\n    const l\n<truncated 3223 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Implementing Shop Voucher data fetching and logic in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Implement Shop Vouchers UI and Lock Modal.\"",
+      "Instruction": "\"Add the rendering logic for the new Shop Vouchers table and its associated controls. Also, implement the Lock Voucher modal, complete with reason input and validation. This finalizes the administrative interface for managing shop-specific vouchers.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1150,\"ReplacementContent\":\"                                                    </button>\\n                                                </div>\\n                                            </div>\\n                        \n<truncated 20689 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Implementing Shop Vouchers UI and Lock Modal in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Implement Shop Vouchers UI components.\"",
+      "Instruction": "\"Add the Shop Vouchers table and the Lock Voucher modal to the Campaigns component. This involves inserting the new section into the main content area and adding the modal at the end of the component, ensuring all UI elements are properly integrated and ac\n<truncated 10 bytes>",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1142,\"ReplacementContent\":\"                    {showShopVouchers ? (\\n                        <section className={`${adminStyles.tableCard} p-5 md:p-6`}>\\n                            <div className=\\\"mb-4 flex flex-col gap\n<truncated 15706 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Integrating Shop Vouchers UI and Lock Modal in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Fix syntax error in Campaigns.jsx by restoring missing closing braces.\"",
+      "EndLine": "1143",
+      "Instruction": "\"Restore the missing closing braces for the previous conditional block before starting the showShopVouchers block. This fixes a syntax error introduced during the previous UI update.\"",
+      "ReplacementContent": "\"                        </section>\\n                    ) : null}\\n\\n                    {showShopVouchers ? (\"",
+      "StartLine": "1141",
+      "TargetContent": "\"                        </section>\\n                    {showShopVouchers ? (\"",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "TargetLintErrorIds": "[\"2eda4b83-fd01-4aa9-945a-c6ed44152e79\"]",
+      "toolAction": "\"Fixing syntax error in Campaigns.jsx by restoring closing braces\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Fix conditional rendering for Shop Vouchers in Campaigns.jsx.\"",
+      "EndLine": "785",
+      "Instruction": "\"Include showShopVouchers in the conditional rendering logic to ensure the Shop Voucher management table is displayed when the view is set to \\\"shop-vouchers\\\". This fixes the issue where the page appeared blank because the main content column was hidden.\"",
+      "ReplacementContent": "\"                {showCampaignList || showRegistrations || view === \\\"create\\\" || showShopVouchers ? (\"",
+      "StartLine": "785",
+      "TargetContent": "\"                {showCampaignList || showRegistrations || view === \\\"create\\\" ? (\"",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Fixing conditional rendering in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Enhance campaign creation form with advanced fields, rich text editor, and conditional rendering.\"",
+      "Instruction": "\"Import ReactQuill, add category state/fetching, update form state/payload, and refactor the campaign creation UI.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":4,\"ReplacementContent\":\"import React, { useEffect, useMemo, useState, useRef } from \\\"react\\\";\\nimport ReactQuill from \\\"react-quill-new\\\";\\nimport \\\"react-quill-new/dist/quill.snow.css\\\";\\nimport SavedFilterViews from \\\".\n<truncated 32793 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Updating Campaigns.jsx with new features and UI improvements\"",
+      "toolSummary": "\"Multi-file content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Remove redundant/dead code for campaign creation form in the side panel.\"",
+      "EndLine": "1415",
+      "Instruction": "\"Remove the showCreateForm && view !== \\\"create\\\" block as it is dead code.\"",
+      "ReplacementContent": "\"                    {showDetailPanel ? (\"",
+      "StartLine": "1380",
+      "TargetContent": "\"                    {showCreateForm && view !== \\\"create\\\" ? (\\n                    <section className={`${adminStyles.panel} rounded-[32px] p-5 md:p-6`}>\\n                        <div className=\\\"flex items-center justify-between gap-3\\\">\\n              \n<truncated 6936 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Cleaning up Campaigns.jsx by removing dead code\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix enum value for target audience in Campaigns.jsx.\"",
+      "Instruction": "\"Update 'tat_ca' to 'toan_san' to match the database schema and backend validation.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":46,\"ReplacementContent\":\"        ghi_chu: \\\"\\\",\\n        doi_tuong_ap_dung: \\\"toan_san\\\",\\n        danh_muc_id: \\\"\\\",\\n        banner_url: \\\"\\\",\\n    };\",\"StartLine\":44,\"TargetContent\":\"        ghi_chu: \\\"\\\",\\n        doi_\n<truncated 1794 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Fixing target audience enum values in Campaigns.jsx\"",
+      "toolSummary": "\"Multi-file content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Add handleLockVoucher and handleUnlockVoucher functions to Campaigns.jsx.\"",
+      "EndLine": "789",
+      "Instruction": "\"Add handleLockVoucher and handleUnlockVoucher functions to handle store voucher management from the frontend.\"",
+      "ReplacementContent": "\"        } finally {\\n            setBulkUpdatingRegistrations(false);\\n        }\\n    }\\n\\n    async function handleLockVoucher() {\\n        if (!selectedVoucherForLock || !lockReason.trim()) return;\\n\\n        setLockingVoucherId(selectedVoucherForLock.i\n<truncated 1441 bytes>",
+      "StartLine": "784",
+      "TargetContent": "\"        } catch (requestError) {\\n            setError(requestError.message || \\\"Không thể cập nhật hàng loạt hồ sơ campaign.\\\");\\n        } finally {\\n            setBulkUpdatingRegistrations(false);\\n        }\\n    }\\n\"",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Adding voucher lock/unlock functions to Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Restore catch block in handleBulkRegistrationStatus.\"",
+      "EndLine": "790",
+      "Instruction": "\"Restore the missing catch block in handleBulkRegistrationStatus that was accidentally removed in the previous edit.\"",
+      "ReplacementContent": "\"            await fetchRegistrations(registrationFilters);\\n            setSelectedRegistrationIds([]);\\n        } catch (requestError) {\\n            setError(requestError.message || \\\"Không thể cập nhật hàng loạt hồ sơ campaign.\\\");\\n      \n<truncated 16 bytes>",
+      "StartLine": "780",
+      "TargetContent": "\"            await fetchRegistrations(registrationFilters);\\n            setSelectedRegistrationIds([]);\\n        } finally {\\n\"",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Restoring missing catch block in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Remove duplicate handleLockVoucher and handleUnlockVoucher declarations.\"",
+      "EndLine": "480",
+      "Instruction": "\"Remove the duplicate function declarations for handleLockVoucher and handleUnlockVoucher at the beginning of the component, as they are redeclared later with more complete implementations.\"",
+      "ReplacementContent": "\"    const handleRefreshRegistrations = () => {\"",
+      "StartLine": "454",
+      "TargetContent": "\"    const handleLockVoucher = async () => {\\n        if (!selectedVoucherForLock || !lockReason.trim()) return;\\n\\n        setLockingVoucherId(selectedVoucherForLock.id);\\n        try {\\n            await put(`/api/admin/shop-vouchers/${selectedVoucherFor\n<truncated 689 bytes>",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Fixing duplicated function error in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Fix duplicated handleRefreshRegistrations declaration.\"",
+      "EndLine": "456",
+      "Instruction": "\"Remove the duplicated declaration of handleRefreshRegistrations that was introduced during the previous edit.\"",
+      "ReplacementContent": "\"    const handleRefreshRegistrations = () => {\\n        if (registrationPage === 1) {\"",
+      "StartLine": "454",
+      "TargetContent": "\"    const handleRefreshRegistrations = () => {\\n    const handleRefreshRegistrations = () => {\\n        if (registrationPage === 1) {\"",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Fixing duplicated function declaration in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Fix undefined fetchRegistrations function call.\"",
+      "EndLine": "755",
+      "Instruction": "\"Change the undefined 'fetchRegistrations' call to the correct 'loadRegistrations' function.\"",
+      "ReplacementContent": "\"            // Refresh the current page to get updated data\\n            await loadRegistrations();\\n            setSelectedRegistrationIds([]);\"",
+      "StartLine": "754",
+      "TargetContent": "\"            // Refresh the current page to get updated data\\n            await fetchRegistrations(registrationFilters);\\n            setSelectedRegistrationIds([]);\"",
+      "TargetFile": "\"d:\\\\ThucHanhNgheNghiep\\\\ZenGoSystem\\\\frontend\\\\src\\\\admin\\\\pages\\\\Campaigns.jsx\"",
+      "toolAction": "\"Fixing undefined function call in Campaigns.jsx\"",
+      "toolSummary": "\"File content replacement\""
+    }
+  }
+]

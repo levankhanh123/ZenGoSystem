@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import SavedFilterViews from "../components/SavedFilterViews";
 import { get, put } from "../lib/api";
+import { Search, Filter, MoreVertical, ShieldAlert, ShieldCheck, UserPlus, RefreshCcw, Download, Trash2, Mail, Phone, MapPin, Calendar, Clock, BarChart3, TrendingUp, Users, ChevronRight, X } from "lucide-react";
 import { adminStyles } from "../lib/adminStyles";
 import { useSavedFilterViews } from "../lib/useSavedFilterViews";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -58,10 +59,18 @@ function getInternalStatusLabel(shop) {
 }
 
 export default function Shops() {
+    const mounted = useRef(true);
     const [shopList, setShopList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
     const [submittingId, setSubmittingId] = useState(null);
+    const [totalShops, setTotalShops] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+    const [globalStats, setGlobalStats] = useState({ total: 0, pending: 0, approved: 0, blocked: 0 });
+    const [shopLogs, setShopLogs] = useState([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState("info"); // info, activity
     const [filters, setFilters] = useUrlFilterState({
         keyword: "",
         trang_thai: "",
@@ -70,46 +79,62 @@ export default function Shops() {
     const [error, setError] = useState(null);
     const savedViews = useSavedFilterViews("admin-shops-views", filters, setFilters);
 
-    useEffect(() => {
-        let mounted = true;
+    const fetchShops = async () => {
+        setLoading(true);
+        setError(null);
 
-        const fetchShops = async () => {
-            setLoading(true);
-            setError(null);
+        try {
+            const response = await get("/api/admin/shops", {
+                ...filters,
+                page: currentPage,
+                per_page: perPage,
+            });
 
-            try {
-                const response = await get("/api/admin/shops", filters);
-
-                if (mounted) {
-                    setShopList(response.data || []);
-                }
-            } catch {
-                if (mounted) {
-                    setError("Không thể tải danh sách shop.");
-                }
-            } finally {
-                if (mounted) {
-                    setLoading(false);
+            if (mounted.current) {
+                setShopList(response.data || []);
+                setTotalShops(response.total || 0);
+                if (response.stats) {
+                    setGlobalStats(response.stats);
                 }
             }
-        };
+        } catch {
+            if (mounted.current) {
+                setError("Không thể tải danh sách shop.");
+            }
+        } finally {
+            if (mounted.current) {
+                setLoading(false);
+            }
+        }
+    };
 
+    useEffect(() => {
+        mounted.current = true;
         fetchShops();
-
         return () => {
-            mounted = false;
+            mounted.current = false;
         };
-    }, [filters]);
+    }, [filters, currentPage]);
 
-    const summary = useMemo(
-        () => ({
-            total: shopList.length,
-            pending: shopList.filter((shop) => shop.trang_thai === "cho_duyet").length,
-            approved: shopList.filter((shop) => shop.trang_thai === "da_duyet").length,
-            blocked: shopList.filter((shop) => shop.trang_thai === "tam_khoa").length,
-        }),
-        [shopList]
-    );
+    const handleRefresh = () => {
+        if (currentPage === 1) {
+            fetchShops();
+        } else {
+            setCurrentPage(1);
+        }
+    };
+
+    const fetchShopLogs = async (ownerId) => {
+        setLogsLoading(true);
+        try {
+            const response = await get("/api/admin/activity-logs", { user_id: ownerId });
+            setShopLogs(response.data || []);
+        } catch (err) {
+            console.error("Failed to fetch logs:", err);
+        } finally {
+            setLogsLoading(false);
+        }
+    };
 
     const filteredShops = useMemo(() => {
         return shopList.filter((shop) => {
@@ -125,11 +150,17 @@ export default function Shops() {
 
     const handleOpenShop = async (shop) => {
         setSelectedShop(shop);
+        setActiveTab("info");
         setDetailLoading(true);
+        setShopLogs([]);
 
         try {
             const response = await get(`/api/admin/shops/${shop.id}`);
-            setSelectedShop(response.data || shop);
+            const fullShop = response.data || shop;
+            setSelectedShop(fullShop);
+            if (fullShop.owner?.id) {
+                fetchShopLogs(fullShop.owner.id);
+            }
         } catch {
             setError("Không thể tải chi tiết shop.");
         } finally {
@@ -174,38 +205,56 @@ export default function Shops() {
 
     return (
         <div className={adminStyles.pageStack}>
-            <section className={adminStyles.pageHero}>
-                <div>
-                    <span className={adminStyles.eyebrow}>Cửa hàng</span>
-                    <h3 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 md:text-[2.25rem] md:leading-[1.1]">
-                        Duyệt và kiểm soát shop.
-                    </h3>
-                </div>
-            </section>
-
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
             )}
 
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Quản lý cửa hàng</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            className={adminStyles.secondaryButton}
+                        >
+                            <RefreshCcw size={16} className={loading ? "animate-spin mr-2" : "mr-2"} />
+                            Làm mới dữ liệu
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>CỬA HÀNG</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Cửa hàng</p>
-                    <h4 className="mt-2 text-3xl font-bold text-slate-800">{summary.total}</h4>
+                    <h4 className="mt-2 text-3xl font-bold text-slate-800">{globalStats.total}</h4>
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">shop base</p>
                 </div>
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Chờ duyệt</p>
-                    <h4 className="mt-2 text-3xl font-bold text-yellow-700">{summary.pending}</h4>
+                    <h4 className="mt-2 text-3xl font-bold text-yellow-700">{globalStats.pending}</h4>
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">pending review</p>
                 </div>
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Đã duyệt</p>
-                    <h4 className="mt-2 text-3xl font-bold text-green-700">{summary.approved}</h4>
+                    <h4 className="mt-2 text-3xl font-bold text-green-700">{globalStats.approved}</h4>
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">live shops</p>
                 </div>
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Tạm khóa</p>
-                    <h4 className="mt-2 text-3xl font-bold text-red-700">{summary.blocked}</h4>
+                    <h4 className="mt-2 text-3xl font-bold text-red-700">{globalStats.blocked}</h4>
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">risk cases</p>
                 </div>
             </div>
@@ -263,7 +312,7 @@ export default function Shops() {
             <div className={`${adminStyles.tableCard} p-5 md:p-6`}>
                 <div className="mb-4 flex items-center justify-between">
                     <h4 className={adminStyles.sectionTitle}>Danh sách shop</h4>
-                    <span className={adminStyles.chip}>Tổng: {filteredShops.length}</span>
+                    <span className={adminStyles.chip}>Hiển thị: {shopList.length} / Tổng: {totalShops}</span>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -281,7 +330,7 @@ export default function Shops() {
                         </thead>
 
                         <tbody>
-                            {filteredShops.map((shop) => (
+                            {shopList.map((shop) => (
                                 <tr key={shop.id} className="border-t">
                                     <td className="px-4 py-3">
                                         <button
@@ -350,7 +399,7 @@ export default function Shops() {
                                 </tr>
                             ))}
 
-                            {!loading && filteredShops.length === 0 && (
+                            {!loading && shopList.length === 0 && (
                                 <tr>
                                     <td colSpan="7" className="px-4 py-8 text-center text-slate-500">Không có dữ liệu shop</td>
                                 </tr>
@@ -364,47 +413,139 @@ export default function Shops() {
                         </tbody>
                     </table>
                 </div>
+
+                <div className="mt-6 flex items-center justify-between border-t pt-4">
+                    <div className="text-sm text-slate-500">
+                        Trang {currentPage} / {Math.ceil(totalShops / perPage) || 1}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            disabled={currentPage === 1 || loading}
+                            onClick={() => setCurrentPage((prev) => prev - 1)}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            Trước
+                        </button>
+                        <button
+                            disabled={currentPage * perPage >= totalShops || loading}
+                            onClick={() => setCurrentPage((prev) => prev + 1)}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            Sau
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {selectedShop && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,11,8,0.52)] px-4 py-6 backdrop-blur-sm">
-                    <div className={`${adminStyles.modalSurface} w-full max-w-2xl p-6`}>
-                        <div className="flex items-start justify-between gap-4">
+                    <div className={`${adminStyles.modalSurface} w-full max-w-4xl overflow-hidden`}>
+                        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-[rgba(132,86,72,0.1)] bg-[rgba(255,250,247,0.94)] px-6 py-5 backdrop-blur-sm">
                             <div>
                                 <span className={adminStyles.eyebrow}>Shop detail</span>
                                 <h3 className="mt-3 text-2xl font-bold text-slate-900">{selectedShop.ten_cua_hang}</h3>
                                 {detailLoading && <p className="mt-2 text-xs text-slate-400">Đang tải chi tiết shop...</p>}
                             </div>
 
-                            <button onClick={() => setSelectedShop(null)} className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">
+                            <button
+                                onClick={() => setSelectedShop(null)}
+                                className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                            >
                                 Đóng
                             </button>
                         </div>
 
-                        <p className="mt-4 text-sm leading-7 text-slate-600">{selectedShop.mo_ta || "Chưa có mô tả"}</p>
-
-                        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
-                                <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Thông tin shop</h4>
-                                <p>Người bán: {selectedShop.owner?.ho_ten || "--"}</p>
-                                <p>Email: {selectedShop.email || selectedShop.owner?.email || "--"}</p>
-                                <p>Địa chỉ: {selectedShop.dia_chi_lay_hang || "--"}</p>
-                            </div>
-
-                            <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
-                                <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Hiệu suất shop</h4>
-                                <p>Doanh thu: {formatCurrency(selectedShop.doanh_thu)}</p>
-                                <p>Đơn hàng: {selectedShop.orders_count ?? 0}</p>
-                                <p>Trạng thái: {getShopStatusLabel(selectedShop.trang_thai)}</p>
-                            </div>
+                        <div className="flex border-b border-[rgba(132,86,72,0.1)] px-6">
+                            <button
+                                onClick={() => setActiveTab("info")}
+                                className={`px-4 py-3 text-sm font-bold transition-colors ${
+                                    activeTab === "info"
+                                        ? "border-b-2 border-[#ee4d2d] text-[#ee4d2d]"
+                                        : "text-slate-500 hover:text-slate-700"
+                                }`}
+                            >
+                                Thông tin chung
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("activity")}
+                                className={`px-4 py-3 text-sm font-bold transition-colors ${
+                                    activeTab === "activity"
+                                        ? "border-b-2 border-[#ee4d2d] text-[#ee4d2d]"
+                                        : "text-slate-500 hover:text-slate-700"
+                                }`}
+                            >
+                                Nhật ký hoạt động
+                            </button>
                         </div>
 
-                        {selectedShop.ly_do_tu_choi && (
-                            <div className={`${adminStyles.detailCard} mt-4 p-4 text-sm text-slate-700`}>
-                                <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Lý do từ chối</h4>
-                                <p>{selectedShop.ly_do_tu_choi}</p>
-                            </div>
-                        )}
+                        <div className="max-h-[60vh] overflow-y-auto px-6 py-6">
+                            {activeTab === "info" ? (
+                                <div className="space-y-6">
+                                    <p className="text-sm leading-7 text-slate-600">{selectedShop.mo_ta || "Chưa có mô tả"}</p>
+
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
+                                            <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Thông tin liên hệ</h4>
+                                            <p>Người bán: {selectedShop.owner?.ho_ten || "--"}</p>
+                                            <p>Email: {selectedShop.email || selectedShop.owner?.email || "--"}</p>
+                                            <p>SĐT: {selectedShop.so_dien_thoai || selectedShop.owner?.so_dien_thoai || "--"}</p>
+                                            <p>Địa chỉ lấy hàng: {selectedShop.dia_chi_lay_hang || "--"}</p>
+                                        </div>
+
+                                        <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
+                                            <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Hiệu suất hoạt động</h4>
+                                            <p>Doanh thu: {formatCurrency(selectedShop.doanh_thu)}</p>
+                                            <p>Đơn hàng: {selectedShop.orders_count ?? 0}</p>
+                                            <p>Sản phẩm: {selectedShop.san_phams_count ?? 0}</p>
+                                            <p>Trạng thái: {getShopStatusLabel(selectedShop.trang_thai)}</p>
+                                        </div>
+                                    </div>
+
+                                    {selectedShop.ly_do_tu_choi && (
+                                        <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
+                                            <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Lý do từ chối</h4>
+                                            <p>{selectedShop.ly_do_tu_choi}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Lịch sử thay đổi hệ thống</h4>
+                                    {logsLoading ? (
+                                        <div className="py-10 text-center text-slate-500">Đang tải nhật ký...</div>
+                                    ) : shopLogs.length > 0 ? (
+                                        <div className="overflow-hidden rounded-2xl border border-slate-200">
+                                            <table className="w-full text-left text-sm">
+                                                <thead className="bg-slate-50">
+                                                    <tr>
+                                                        <th className="px-4 py-3 font-semibold text-slate-700">Thời gian</th>
+                                                        <th className="px-4 py-3 font-semibold text-slate-700">Hành động</th>
+                                                        <th className="px-4 py-3 font-semibold text-slate-700">Mô tả</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {shopLogs.map((log) => (
+                                                        <tr key={log.id} className="border-t">
+                                                            <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                                                                {new Date(log.created_at).toLocaleString("vi-VN")}
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <span className="rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold uppercase text-blue-600">
+                                                                    {log.hanh_dong}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-700">{log.mo_ta}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="py-10 text-center text-slate-500">Chưa có hoạt động nào được ghi nhận cho shop này.</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

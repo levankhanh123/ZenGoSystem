@@ -22,7 +22,7 @@ class AuthController extends Controller
             'email' => $request->email,
             'so_dien_thoai' => $request->so_dien_thoai,
             'mat_khau' => bcrypt($request->mat_khau),
-            'vai_tro' => 'nguoi_mua'
+            'vai_tro' => 'user'
         ]);
 
         // 🎯 tạo token

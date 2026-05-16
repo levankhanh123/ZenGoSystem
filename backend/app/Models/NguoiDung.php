@@ -161,9 +161,31 @@ class NguoiDung extends Authenticatable
         return $this->hasMany(DoiSoatShipper::class, 'shipper_id');
     }
 
+    public function giaoHangs()
+    {
+        return $this->hasMany(GiaoHang::class, 'nguoi_giao_hang_id');
+    }
+
+    public function deliveries()
+    {
+        return $this->giaoHangs();
+    }
+
     // ── HELPERS ──
-    public function isAdmin(): bool    { return $this->vai_tro === 'admin'; }
-    public function isNguoiMua(): bool { return $this->vai_tro === 'nguoi_mua'; }
-    public function isNguoiBan(): bool { return $this->vai_tro === 'nguoi_ban'; }
+    public function isUser(): bool     { return $this->vai_tro === 'user'; }
+    public function isNguoiMua(): bool { return $this->isUser(); } // Legacy
+    public function isNguoiBan(): bool { return $this->vai_tro === 'seller'; }
     public function isShipper(): bool  { return $this->vai_tro === 'shipper'; }
+
+    public function vouchers()
+    {
+        return $this->belongsToMany(Voucher::class, 'nguoi_dung_voucher', 'nguoi_dung_id', 'voucher_id')
+            ->withPivot(['trang_thai', 'ngay_thu_thap', 'ngay_su_dung'])
+            ->withTimestamps();
+    }
+
+    public function nhatKyHoatDongs()
+    {
+        return $this->hasMany(NhatKyHoatDong::class, 'nguoi_dung_id');
+    }
 }

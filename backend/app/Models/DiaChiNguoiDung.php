@@ -13,6 +13,9 @@ class DiaChiNguoiDung extends Model
         'ten_nguoi_nhan',
         'so_dien_thoai',
         'dia_chi_chi_tiet',
+        'province_id',
+        'district_id',
+        'ward_code',
         'la_mac_dinh',
     ];
 

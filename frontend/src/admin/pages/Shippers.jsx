@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { get, put } from "../lib/api";
 import { adminStyles } from "../lib/adminStyles";
+import AddShipperModal from "../components/AddShipperModal";
+import ChangeZoneModal from "../components/ChangeZoneModal";
+import { UserPlus, MapPin, ShieldAlert, ShieldCheck, History, MoreVertical, Search, Filter, Loader2, RefreshCcw } from "lucide-react";
 
 function formatCurrency(value) {
     return `${Number(value || 0).toLocaleString("vi-VN")} đ`;
@@ -96,48 +99,85 @@ export default function Shippers() {
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
     const [submittingId, setSubmittingId] = useState(null);
-    const [filters, setFilters] = useState({
-        keyword: "",
-        trang_thai: "",
-        trang_thai_noi_bo: "",
-    });
     const [selectedShipper, setSelectedShipper] = useState(null);
     const [interventionForm, setInterventionForm] = useState(getInitialInterventionForm(null));
     const [error, setError] = useState(null);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showChangeZoneModal, setShowChangeZoneModal] = useState(false);
+    const [shipperToChange, setShipperToChange] = useState(null);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [provinces, setProvinces] = useState([]);
+    const [districts, setDistricts] = useState([]);
+    const [selectedProvince, setSelectedProvince] = useState("");
+
+    const [filters, setFilters] = useState({
+        keyword: "",
+        trang_thai: "",
+        district_id: "",
+    });
+
+    const fetchShippers = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await get("/api/admin/shippers", {
+                keyword: filters.keyword,
+                trang_thai: filters.trang_thai,
+                district_id: filters.district_id,
+            });
+
+            setShippers(response.data || []);
+        } catch {
+            setError("Không thể tải danh sách shipper.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        let mounted = true;
+        fetchShippers();
+    }, [filters.keyword, filters.trang_thai, filters.district_id, refreshKey]);
 
-        const fetchShippers = async () => {
-            setLoading(true);
-            setError(null);
-
+    useEffect(() => {
+        const fetchProvinces = async () => {
             try {
-                const response = await get("/api/admin/shippers", {
-                    keyword: filters.keyword,
-                    trang_thai: filters.trang_thai,
-                });
-
-                if (mounted) {
-                    setShippers(response.data || []);
-                }
-            } catch {
-                if (mounted) {
-                    setError("Không thể tải danh sách shipper.");
-                }
-            } finally {
-                if (mounted) {
-                    setLoading(false);
-                }
+                const response = await get("/api/ghn/provinces");
+                setProvinces(response.data || []);
+            } catch (err) {
+                console.error("Error fetching provinces:", err);
             }
         };
+        fetchProvinces();
+    }, []);
 
-        fetchShippers();
+    const handleProvinceChange = async (e) => {
+        const provinceId = e.target.value;
+        setSelectedProvince(provinceId);
+        setDistricts([]);
+        setFilters(prev => ({ ...prev, district_id: "" }));
 
-        return () => {
-            mounted = false;
-        };
-    }, [filters.keyword, filters.trang_thai]);
+        if (provinceId) {
+            try {
+                const { post: apiPost } = await import("../lib/api");
+                const res = await apiPost("/api/ghn/districts", { province_id: parseInt(provinceId) });
+                setDistricts(res.data || []);
+            } catch (err) {
+                console.error("Error fetching districts:", err);
+            }
+        }
+    };
+
+    const handleToggleStatus = async (shipper) => {
+        if (!window.confirm(`Bạn có chắc chắn muốn ${shipper.trang_thai === 'hoat_dong' ? 'khóa' : 'mở khóa'} tài khoản shipper này?`)) return;
+        
+        try {
+            await put(`/api/admin/shippers/${shipper.id}/toggle-status`);
+            setRefreshKey(prev => prev + 1);
+        } catch (err) {
+            setError(err.message || "Không thể cập nhật trạng thái");
+        }
+    };
 
     useEffect(() => {
         setInterventionForm(getInitialInterventionForm(selectedShipper));
@@ -146,10 +186,9 @@ export default function Shippers() {
     const filteredShippers = useMemo(() => {
         return shippers.filter((shipper) => {
             const internalStatus = shipper.shipper_profile?.trang_thai_noi_bo || "";
-
-            return !filters.trang_thai_noi_bo || internalStatus === filters.trang_thai_noi_bo;
+            return true;
         });
-    }, [filters.trang_thai_noi_bo, shippers]);
+    }, [shippers]);
 
     const summary = useMemo(
         () => ({
@@ -158,7 +197,6 @@ export default function Shippers() {
             locked: shippers.filter((item) => item.trang_thai === "khoa").length,
             flagged: shippers.filter((item) => {
                 const internalStatus = item.shipper_profile?.trang_thai_noi_bo;
-
                 return internalStatus === "canh_bao" || internalStatus === "rui_ro";
             }).length,
         }),
@@ -212,20 +250,99 @@ export default function Shippers() {
 
     return (
         <div className={adminStyles.pageStack}>
-            <section className={adminStyles.pageHero}>
-                <div>
-                    <span className={adminStyles.eyebrow}>Giao hàng</span>
-                    <h3 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 md:text-[2.25rem] md:leading-[1.1]">
-                        Điều phối và theo dõi shipper.
-                    </h3>
-                </div>
-            </section>
-
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
             )}
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Quản lý vận chuyển</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowAddModal(true)}
+                            className={adminStyles.primaryButton}
+                        >
+                            <UserPlus size={16} className="mr-2" />
+                            Thêm Shipper mới
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>SHIPPER</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-3 mb-6">
+                <div className={`${adminStyles.panel} p-5 flex flex-col md:flex-row gap-4 items-end`}>
+                    <div className="flex-1 w-full">
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Tìm kiếm</label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-sky-500 transition text-sm"
+                                placeholder="Tên, Email, Số điện thoại..."
+                                value={filters.keyword}
+                                onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
+                            />
+                            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                    </div>
+
+                    <div className="w-full md:w-48">
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Trạng thái</label>
+                        <select
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-sky-500 transition text-sm appearance-none bg-white"
+                            value={filters.trang_thai}
+                            onChange={(e) => setFilters({ ...filters, trang_thai: e.target.value })}
+                        >
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="hoat_dong">Đang hoạt động</option>
+                            <option value="khoa">Đã bị khóa</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className={`${adminStyles.panel} p-5 flex flex-col md:flex-row gap-4 items-end md:col-span-2`}>
+                    <div className="flex-1 w-full">
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Khu vực (Tỉnh/Thành)</label>
+                        <select
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-sky-500 transition text-sm appearance-none bg-white"
+                            value={selectedProvince}
+                            onChange={handleProvinceChange}
+                        >
+                            <option value="">Tất cả Tỉnh/Thành</option>
+                            {provinces.map(p => (
+                                <option key={p.ProvinceID} value={p.ProvinceID}>{p.ProvinceName}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex-1 w-full">
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Quận/Huyện</label>
+                        <select
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-sky-500 transition text-sm appearance-none bg-white"
+                            value={filters.district_id}
+                            onChange={(e) => setFilters({ ...filters, district_id: e.target.value })}
+                            disabled={!selectedProvince}
+                        >
+                            <option value="">Tất cả Quận/Huyện</option>
+                            {districts.map(d => (
+                                <option key={d.DistrictID} value={d.DistrictID}>{d.DistrictName}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Shipper</p>
                     <h4 className="mt-2 text-3xl font-bold text-slate-800">{summary.total}</h4>
@@ -248,53 +365,6 @@ export default function Shippers() {
                 </div>
             </div>
 
-            <div className={`${adminStyles.panel} rounded-[30px] p-5 md:p-6`}>
-                <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--admin-primary)]">Lọc nhanh</p>
-                        <h4 className="mt-2 text-lg font-bold text-slate-900">Bộ lọc</h4>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                    <input
-                        placeholder="Tên, email, số điện thoại"
-                        value={filters.keyword}
-                        onChange={(event) => setFilters({ ...filters, keyword: event.target.value })}
-                        className="rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none"
-                    />
-
-                    <select
-                        value={filters.trang_thai}
-                        onChange={(event) => setFilters({ ...filters, trang_thai: event.target.value })}
-                        className="rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none"
-                    >
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="hoat_dong">Hoạt động</option>
-                        <option value="khoa">Tạm khóa</option>
-                    </select>
-
-                    <select
-                        value={filters.trang_thai_noi_bo}
-                        onChange={(event) => setFilters({ ...filters, trang_thai_noi_bo: event.target.value })}
-                        className="rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none"
-                    >
-                        <option value="">Tất cả mức vận hành</option>
-                        <option value="binh_thuong">Bình thường</option>
-                        <option value="canh_bao">Cảnh báo</option>
-                        <option value="rui_ro">Rủi ro</option>
-                    </select>
-
-                    <button
-                        type="button"
-                        onClick={() => setFilters({ keyword: "", trang_thai: "", trang_thai_noi_bo: "" })}
-                        className={adminStyles.primaryButton}
-                    >
-                        Đặt lại bộ lọc
-                    </button>
-                </div>
-            </div>
-
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
                 <div className={`${adminStyles.tableCard} p-5 md:p-6 xl:col-span-7`}>
                     <div className="mb-4 flex items-center justify-between">
@@ -306,60 +376,89 @@ export default function Shippers() {
                         <table className="min-w-full text-left text-sm">
                             <thead>
                                 <tr>
-                                    <th className="px-4 py-3">Shipper</th>
-                                    <th className="px-4 py-3">Khu vực</th>
-                                    <th className="px-4 py-3">Hiệu suất</th>
-                                    <th className="px-4 py-3">Vận hành</th>
-                                    <th className="px-4 py-3">Ký quỹ / công nợ</th>
-                                    <th className="px-4 py-3">Thao tác</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Shipper</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Khu vực (Zone)</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Công việc</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Tài chính</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Thao tác</th>
                                 </tr>
                             </thead>
-
-                            <tbody>
+                            <tbody className="divide-y divide-slate-100">
                                 {filteredShippers.map((shipper) => {
                                     const profile = shipper.shipper_profile || {};
-                                    const health = getHealthLabel(shipper);
-
+                                    const workloadPercent = Math.min(((profile.don_dang_giao || 0) / (profile.suc_chua_don_hang || 5)) * 100, 100);
+                                    
                                     return (
-                                        <tr key={shipper.id} className="border-t align-top">
+                                        <tr key={shipper.id} className="group hover:bg-slate-50/50 transition">
                                             <td className="px-4 py-4">
-                                                <div>
-                                                    <p className="font-semibold text-slate-800">{shipper.ho_ten}</p>
-                                                    <p className="text-slate-500">{profile.ma_shipper || "--"}</p>
-                                                    <p className="text-slate-500">{shipper.so_dien_thoai || shipper.email}</p>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-10 w-10 overflow-hidden rounded-xl bg-slate-100 ring-2 ring-white shadow-sm">
+                                                        <img
+                                                            src={shipper.anh_dai_dien || "https://ui-avatars.com/api/?name=" + shipper.ho_ten}
+                                                            alt={shipper.ho_ten}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-900 group-hover:text-[var(--admin-primary)] transition">{shipper.ho_ten}</p>
+                                                        <p className="text-[11px] font-medium text-slate-400 uppercase">{profile.ma_shipper || "SHP_NEW"}</p>
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-slate-600">{profile.khu_vuc || "--"}</td>
-                                            <td className="px-4 py-4 text-slate-600">
-                                                <p>Đơn hôm nay: {profile.don_hom_nay || 0}</p>
-                                                <p>Đang giao: {profile.don_dang_giao || 0}</p>
-                                                <p>Tỷ lệ đúng hạn: {formatPercent(profile.ty_le_dung_han)}</p>
-                                            </td>
                                             <td className="px-4 py-4">
-                                                <div className="flex flex-col gap-2">
-                                                    <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getUserStatusClass(shipper.trang_thai)}`}>
-                                                        {getUserStatusLabel(shipper.trang_thai)}
-                                                    </span>
-                                                    <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getInternalStatusClass(profile.trang_thai_noi_bo)}`}>
-                                                        {getInternalStatusLabel(profile.trang_thai_noi_bo)}
-                                                    </span>
-                                                    <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${health.className}`}>
-                                                        {health.label}
-                                                    </span>
+                                                <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
+                                                    <MapPin size={14} className="text-rose-500" />
+                                                    {profile.khu_vuc || "Chưa gán"}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-slate-600">
-                                                <p>Ký quỹ: {formatCurrency(profile.ky_quy_hien_tai)}</p>
-                                                <p>Công nợ: {formatCurrency(profile.cong_no_hien_tai)}</p>
+                                            <td className="px-4 py-4">
+                                                <div className="space-y-2 max-w-[120px]">
+                                                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase">
+                                                        <span>Đang giao</span>
+                                                        <span>{profile.don_dang_giao || 0}/{profile.suc_chua_don_hang || 5}</span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                                        <div 
+                                                            className={`h-full transition-all duration-500 ${workloadPercent > 80 ? 'bg-rose-500' : 'bg-emerald-500'}`} 
+                                                            style={{ width: `${workloadPercent}%` }} 
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 text-[13px] text-slate-600">
+                                                <p className="font-medium text-slate-900">{formatCurrency(profile.cong_no_hien_tai)}</p>
+                                                <p className="text-[11px] text-slate-400">Công nợ</p>
                                             </td>
                                             <td className="px-4 py-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleOpenShipper(shipper)}
-                                                    className={adminStyles.darkButton}
-                                                >
-                                                    Xem chi tiết
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenShipper(shipper)}
+                                                        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition shadow-sm"
+                                                        title="Xem chi tiết"
+                                                    >
+                                                        <History size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setShipperToChange(shipper);
+                                                            setShowChangeZoneModal(true);
+                                                        }}
+                                                        className="p-2 rounded-xl bg-white border border-slate-200 text-rose-500 hover:bg-rose-50 transition shadow-sm"
+                                                        title="Đổi vùng"
+                                                    >
+                                                        <MapPin size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleToggleStatus(shipper)}
+                                                        className={`p-2 rounded-xl bg-white border border-slate-200 transition shadow-sm ${shipper.trang_thai === 'hoat_dong' ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+                                                        title={shipper.trang_thai === 'hoat_dong' ? "Khóa tài khoản" : "Mở khóa"}
+                                                    >
+                                                        {shipper.trang_thai === 'hoat_dong' ? <ShieldAlert size={16} /> : <ShieldCheck size={16} />}
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -496,6 +595,30 @@ export default function Shippers() {
                     )}
                 </div>
             </div>
+
+            {showAddModal && (
+                <AddShipperModal 
+                    onClose={() => setShowAddModal(false)}
+                    onSuccess={() => {
+                        setShowAddModal(false);
+                        setRefreshKey(prev => prev + 1);
+                    }}
+                />
+            )}
+            {showChangeZoneModal && (
+                <ChangeZoneModal 
+                    shipper={shipperToChange}
+                    onClose={() => {
+                        setShowChangeZoneModal(false);
+                        setShipperToChange(null);
+                    }}
+                    onSuccess={() => {
+                        setShowChangeZoneModal(false);
+                        setShipperToChange(null);
+                        setRefreshKey(prev => prev + 1);
+                    }}
+                />
+            )}
         </div>
     );
 }

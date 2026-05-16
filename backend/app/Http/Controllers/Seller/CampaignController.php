@@ -1,3 +1,4 @@
+<?php
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
@@ -15,11 +16,10 @@ class CampaignController extends Controller
     {
         $shopId = $request->query('shop_id');
         
-        $campaigns = ChienDich::with(['vouchers' => function($query) {
-                $query->where('loai', 'san');
-            }])
-            ->where('trang_thai', 'dang_dien_ra')
-            ->where('ngay_ket_thuc', '>=', now())
+        // Lấy các Voucher hệ thống (campaign) mà shop có thể đăng ký
+        $campaigns = \App\Models\Voucher::whereNull('cua_hang_id')
+            ->whereIn('trang_thai', ['dang_mo_dang_ky', 'dang_dien_ra'])
+            ->where('thoi_gian_ket_thuc', '>=', now())
             ->get();
 
         $data = $campaigns->map(function ($campaign) use ($shopId) {
@@ -32,13 +32,15 @@ class CampaignController extends Controller
 
             return [
                 'id' => $campaign->id,
-                'ma_chien_dich' => $campaign->ma_chien_dich,
-                'ten_chien_dich' => $campaign->ten_chien_dich,
+                'ma_chien_dich' => $campaign->ma_voucher,
+                'ten_chien_dich' => $campaign->ten_voucher,
                 'mo_ta' => $campaign->mo_ta,
-                'ngay_bat_dau' => $campaign->ngay_bat_dau,
-                'ngay_ket_thuc' => $campaign->ngay_ket_thuc,
+                'mo_ta_rich' => $campaign->mo_ta_rich,
+                'banner_url' => $campaign->banner_url,
+                'ngay_bat_dau' => $campaign->thoi_gian_bat_dau,
+                'ngay_ket_thuc' => $campaign->thoi_gian_ket_thuc,
+                'trang_thai' => $campaign->trang_thai,
                 'registration' => $registration,
-                'vouchers' => $campaign->vouchers
             ];
         });
 
@@ -54,7 +56,7 @@ class CampaignController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'campaign_id' => 'required|exists:chien_dich,id',
+            'campaign_id' => 'required|exists:voucher,id',
             'shop_id' => 'required'
         ]);
 

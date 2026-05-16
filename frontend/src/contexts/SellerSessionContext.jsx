@@ -45,8 +45,14 @@ export function SellerSessionProvider({ children }) {
         },
       });
       const payload = response.data?.data || {};
-      const resolvedUserId = payload.selected_user?.id || null;
-      const resolvedShopId = payload.selected_shop?.id || null;
+      let resolvedUserId = payload.selected_user?.id || null;
+      let resolvedShopId = payload.selected_shop?.id || null;
+
+      // Auto-select if nothing is selected but options are available
+      if (!resolvedShopId && payload.available_shops?.length > 0) {
+        resolvedShopId = payload.available_shops[0].id;
+        payload.selected_shop = payload.available_shops[0];
+      }
 
       setSelection({ userId: resolvedUserId, shopId: resolvedShopId });
       window.localStorage.setItem(
@@ -63,6 +69,7 @@ export function SellerSessionProvider({ children }) {
         availableShops: payload.available_shops || [],
       });
     } catch (error) {
+      console.error("SellerSessionContext Error Details:", error);
       setState((current) => ({
         ...current,
         loading: false,

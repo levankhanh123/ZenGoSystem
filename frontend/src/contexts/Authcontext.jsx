@@ -13,9 +13,13 @@ export function AuthProvider({ children }) {
     if (!token) { setLoading(false); return; }
 
     ApiService.getProfile()
-      .then((data) => setUser(data))
+      .then((data) => {
+        setUser(data);
+        localStorage.setItem("user", JSON.stringify(data));
+      })
       .catch(() => {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setUser(null);
       })
       .finally(() => setLoading(false));
@@ -27,8 +31,9 @@ export function AuthProvider({ children }) {
     try {
       const res = await ApiService.login({ email, mat_khau });
       localStorage.setItem("token", res.token);
+      localStorage.setItem("user", JSON.stringify(res.user));
       setUser(res.user);
-      return { success: true };
+      return { success: true, user: res.user };
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Đăng nhập thất bại");
       return { success: false };
@@ -43,6 +48,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await ApiService.register(data);
       localStorage.setItem("token", res.token);
+      localStorage.setItem("user", JSON.stringify(res.user));
       setUser(res.user);
       return { success: true };
     } catch (err) {
@@ -55,14 +61,29 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
     setError(null);
   }, []);
 
-  const clearError = useCallback(() => setError(null), []);
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const data = await ApiService.getProfile();
+      setUser(data);
+      localStorage.setItem("user", JSON.stringify(data));
+    } catch (err) {
+      console.error("Failed to refresh user profile", err);
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, logout, clearError }}>
+    <AuthContext.Provider value={{ user, loading, error, login, register, logout, clearError, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

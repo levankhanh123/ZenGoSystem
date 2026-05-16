@@ -7,6 +7,7 @@ use App\Services\AdminNotificationService;
 use App\Services\SocketRelayService;
 use App\Models\NguoiDung;
 use App\Models\ThongBao;
+use App\Models\NhatKyHoatDong;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -61,11 +62,20 @@ class NotificationController extends Controller
         $unreadCount = (clone $query)->where('da_doc', 0)->count();
         $totalCount = (clone $query)->count();
 
-        return response()->json([
-            'data' => $query->orderBy('created_at', 'desc')->get(),
+        $statsByType = [
+            'alert' => (clone $query)->where('loai_thong_bao', 'alert')->count(),
+            'system' => (clone $query)->where('loai_thong_bao', 'system')->count(),
+            'promotion' => (clone $query)->where('loai_thong_bao', 'promotion')->count(),
+        ];
+
+        $perPage = $request->input('per_page', 10);
+        $notifications = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        return response()->json(array_merge($notifications->toArray(), [
             'total_count' => $totalCount,
             'unread_count' => $unreadCount,
-        ]);
+            'stats_by_type' => $statsByType,
+        ]));
     }
 
     public function store(Request $request): JsonResponse
@@ -110,6 +120,14 @@ class NotificationController extends Controller
             $payload['noi_dung'],
             $payload['loai_thong_bao'] ?? 'general'
         );
+
+        NhatKyHoatDong::create([
+            'nguoi_dung_id' => auth()->id() ?? 1, // Assuming admin is logged in
+            'hanh_dong' => 'notification_broadcast',
+            'mo_ta' => "Admin gửi thông báo broadcast '{$payload['tieu_de']}' tới nhóm '{$payload['vai_tro']}' ({$userIds->count()} người).",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
 
         return response()->json([
             'message' => 'Thông báo đã gửi cho vai trò ' . $payload['vai_tro'],
@@ -174,6 +192,14 @@ class NotificationController extends Controller
             ->get();
 
         $deleted = ThongBao::whereIn('id', $payload['ids'])->delete();
+
+        NhatKyHoatDong::create([
+            'nguoi_dung_id' => auth()->id() ?? 1,
+            'hanh_dong' => 'notification_bulk_delete',
+            'mo_ta' => "Admin xóa hàng loạt {$deleted} thông báo từ nhật ký.",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
 
         $notifications->each(function (ThongBao $notification) use ($socketRelay) {
             $socketRelay->emit('notification.deleted', [

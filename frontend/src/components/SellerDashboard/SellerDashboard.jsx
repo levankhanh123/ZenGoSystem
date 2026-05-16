@@ -1,21 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import AllOrders from './AllOrders/AllOrders';
-import HandoverOrders from './HandoverOrders/HandoverOrders';
-import AllProducts from './AllProducts/AllProducts';
-import AddProduct from './AddProduct/AddProduct';
-import SellerChat from './SellerChat/SellerChat';
-import ReviewManagement from './ReviewManagement/ReviewManagement';
-import CampaignRegistration from './CampaignRegistration/CampaignRegistration';
-import ShopVouchers from './ShopVouchers/ShopVouchers';
-import BankAccounts from './Finance/BankAccounts';
-import WithdrawalRequests from './Finance/WithdrawalRequests';
-import RevenueDashboard from './Finance/RevenueDashboard';
-import StatisticsDashboard from './Data/StatisticsDashboard';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import api from '../../api/axios';
 import { useSellerSession } from '../../contexts/SellerSessionContext';
 import { getSellerSocketClient } from '../../lib/socketClient';
 import './SellerDashboard.css';
+import { Bell } from 'lucide-react';
 
 function formatNotificationTime(value) {
   if (!value) {
@@ -38,9 +27,6 @@ const SellerDashboard = () => {
     error,
     selectedUser,
     selectedShop,
-    availableUsers,
-    availableShops,
-    updateSelection,
   } = useSellerSession();
   // State to manage expanded/collapsed sidebar menus
   const [openMenus, setOpenMenus] = useState({
@@ -51,7 +37,15 @@ const SellerDashboard = () => {
     data: false,
   });
 
-  const [activeTab, setActiveTab] = useState('Tuyển dụng ZENGO'); // Just a placeholder active tab
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  // Helper to check if a sub-path is active
+  const isPathActive = (path) => {
+    if (path === '/seller-dashboard' && currentPath === '/seller-dashboard') return true;
+    return currentPath === `/seller-dashboard/${path}`;
+  };
+
   const [showLogout, setShowLogout] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -66,17 +60,11 @@ const SellerDashboard = () => {
     }));
   };
 
-  const handleSubMenuClick = (tabName) => {
-    setActiveTab(tabName);
+  const handleSubMenuClick = (path) => {
+    navigate(`/seller-dashboard/${path}`);
   };
 
-  const handleChangeUser = async (event) => {
-    await updateSelection({ userId: event.target.value, shopId: '' });
-  };
 
-  const handleChangeShop = async (event) => {
-    await updateSelection({ userId: selectedUser?.id, shopId: event.target.value });
-  };
 
   useEffect(() => {
     if (!selectedUser?.id) {
@@ -104,7 +92,7 @@ const SellerDashboard = () => {
         setUnreadNotificationCount(response.data?.unread_count || 0);
       } catch (requestError) {
         if (!cancelled) {
-          setNotificationError(requestError.response?.data?.message || 'Không thể tải thông báo realtime.');
+          setNotificationError(requestError.response?.data?.message || 'Không thể tải thông báo.');
         }
       } finally {
         if (!cancelled) {
@@ -217,37 +205,29 @@ const SellerDashboard = () => {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-content">
-          <h1 className="zengo-logo">ZENGO</h1>
+          <h1 className="zengo-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>ZENGO</h1>
+          <span className="header-divider">|</span>
           <span className="header-title">Kênh Người Bán</span>
+          <span className="header-divider">|</span>
+          <button 
+            onClick={() => navigate('/')}
+            className="buyer-channel-link"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#666',
+              fontSize: '14px',
+              cursor: 'pointer',
+              marginLeft: '10px',
+              hover: { color: '#ee4d2d' }
+            }}
+          >
+            Kênh người mua
+          </button>
         </div>
         <div className="header-right" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '12px' }}>
-            <select
-              value={selectedUser?.id || ''}
-              onChange={handleChangeUser}
-              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', minWidth: '180px' }}
-            >
-              <option value="">Chọn tài khoản seller</option>
-              {availableUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.ho_ten}
-                </option>
-              ))}
-            </select>
+          {/* Context selectors removed as per user request */}
 
-            <select
-              value={selectedShop?.id || ''}
-              onChange={handleChangeShop}
-              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', minWidth: '220px' }}
-            >
-              <option value="">Chọn cửa hàng</option>
-              {availableShops.map((shop) => (
-                <option key={shop.id} value={shop.id}>
-                  {shop.ten_cua_hang}
-                </option>
-              ))}
-            </select>
-          </div>
 
           <div className="seller-notifications">
             <button
@@ -255,7 +235,7 @@ const SellerDashboard = () => {
               className="seller-notification-button"
               onClick={() => setShowNotifications((current) => !current)}
             >
-              <span className="seller-notification-icon">🔔</span>
+              <Bell size={20} strokeWidth={1.5} className="seller-notification-icon" />
               {unreadNotificationCount > 0 && (
                 <span className="seller-notification-badge">{unreadNotificationCount}</span>
               )}
@@ -265,7 +245,7 @@ const SellerDashboard = () => {
               <div className="seller-notification-panel">
                 <div className="seller-notification-panel-header">
                   <div>
-                    <strong>Thông báo realtime</strong>
+                    <strong>Thông báo</strong>
                     <p>{unreadNotificationCount} chưa đọc</p>
                   </div>
                 </div>
@@ -329,7 +309,11 @@ const SellerDashboard = () => {
                minWidth: '150px'
             }}>
               <button 
-                onClick={() => navigate('/seller-registration')}
+                onClick={() => {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('zengo.seller.session');
+                  navigate('/login');
+                }}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -359,13 +343,14 @@ const SellerDashboard = () => {
         </div>
       </header>
 
+      {error && (
+        <div style={{ margin: '16px 24px 0', padding: '12px 16px', borderRadius: '12px', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fee2e2' }}>
+          <strong>Lỗi kết nối:</strong> {error}
+        </div>
+      )}
+
       {/* Main Layout */}
       <div className="dashboard-main">
-        {error && (
-          <div style={{ margin: '16px 24px 0', padding: '12px 16px', borderRadius: '12px', background: '#fef2f2', color: '#b91c1c' }}>
-            {error}
-          </div>
-        )}
         {/* Sidebar */}
         <aside className="dashboard-sidebar">
           <nav className="sidebar-nav">
@@ -385,38 +370,32 @@ const SellerDashboard = () => {
               
               <div className={`submenu-list ${openMenus.orders ? 'expanded' : ''}`}>
                  <div 
-                    className={`submenu-item ${activeTab === 'Tất cả đơn hàng' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Tất cả đơn hàng')}
+                    className={`submenu-item ${isPathActive('orders') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('orders')}
                  >
                     Tất cả
                  </div>
                  <div 
-                    className={`submenu-item ${activeTab === 'Bàn giao đơn hàng' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Bàn giao đơn hàng')}
+                    className={`submenu-item ${isPathActive('handover') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('handover')}
                  >
                     Bàn giao đơn hàng
                  </div>
                  <div 
-                    className={`submenu-item ${activeTab === 'Đơn trả hàng / hủy' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Đơn trả hàng / hủy')}
+                    className={`submenu-item ${isPathActive('returns') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('returns')}
                  >
                     Đơn trả hàng/ hoàn tiền hoặc đơn hủy
                  </div>
                  <div 
-                    className={`submenu-item ${activeTab === 'Đăng ký chiến dịch' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Đăng ký chiến dịch')}
+                    className={`submenu-item ${isPathActive('campaigns') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('campaigns')}
                  >
                     Đăng ký chiến dịch
                  </div>
                  <div 
-                    className={`submenu-item ${activeTab === 'Cài đặt vận chuyển' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Cài đặt vận chuyển')}
-                 >
-                    Cài đặt vận chuyển
-                 </div>
-                 <div 
-                    className={`submenu-item ${activeTab === 'Kho voucher' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Kho voucher')}
+                    className={`submenu-item ${isPathActive('vouchers') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('vouchers')}
                  >
                     Kho voucher
                  </div>
@@ -437,14 +416,14 @@ const SellerDashboard = () => {
               </div>
               <div className={`submenu-list ${openMenus.products ? 'expanded' : ''}`}>
                  <div 
-                    className={`submenu-item ${activeTab === 'Tất cả sản phẩm' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Tất cả sản phẩm')}
+                    className={`submenu-item ${isPathActive('products') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('products')}
                  >
                     Tất cả sản phẩm
                  </div>
                  <div 
-                    className={`submenu-item ${activeTab === 'Thêm sản phẩm' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Thêm sản phẩm')}
+                    className={`submenu-item ${isPathActive('add-product') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('add-product')}
                  >
                     Thêm sản phẩm mới
                  </div>
@@ -465,14 +444,14 @@ const SellerDashboard = () => {
               </div>
               <div className={`submenu-list ${openMenus.customerService ? 'expanded' : ''}`}>
                  <div 
-                    className={`submenu-item ${activeTab === 'Chat với khách' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Chat với khách')}
+                    className={`submenu-item ${isPathActive('chat') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('chat')}
                  >
                     Quản lý chat
                  </div>
                  <div 
-                    className={`submenu-item ${activeTab === 'Đánh giá shop' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Đánh giá shop')}
+                    className={`submenu-item ${isPathActive('reviews') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('reviews')}
                  >
                     Quản lý đánh giá
                  </div>
@@ -493,20 +472,20 @@ const SellerDashboard = () => {
               </div>
               <div className={`submenu-list ${openMenus.finance ? 'expanded' : ''}`}>
                  <div 
-                    className={`submenu-item ${activeTab === 'Doanh thu' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Doanh thu')}
+                    className={`submenu-item ${isPathActive('revenue') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('revenue')}
                  >
                     Doanh thu
                  </div>
                  <div 
-                    className={`submenu-item ${activeTab === 'Yêu cầu rút tiền' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Yêu cầu rút tiền')}
+                    className={`submenu-item ${isPathActive('withdrawals') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('withdrawals')}
                  >
                     Yêu cầu rút tiền
                  </div>
                  <div 
-                    className={`submenu-item ${activeTab === 'Tài khoản ngân hàng' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Tài khoản ngân hàng')}
+                    className={`submenu-item ${isPathActive('bank-accounts') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('bank-accounts')}
                  >
                     Tài khoản ngân hàng
                  </div>
@@ -527,8 +506,8 @@ const SellerDashboard = () => {
               </div>
               <div className={`submenu-list ${openMenus.data ? 'expanded' : ''}`}>
                  <div 
-                    className={`submenu-item ${activeTab === 'Thống kê' ? 'active' : ''}`}
-                    onClick={() => handleSubMenuClick('Thống kê')}
+                    className={`submenu-item ${isPathActive('statistics') ? 'active' : ''}`}
+                    onClick={() => handleSubMenuClick('statistics')}
                  >
                     Thống kê
                  </div>
@@ -539,39 +518,16 @@ const SellerDashboard = () => {
 
         {/* Boarding Content Area */}
         <main className="dashboard-content">
-          {activeTab === 'Tất cả đơn hàng' ? (
-             <AllOrders />
-          ) : activeTab === 'Bàn giao đơn hàng' ? (
-             <HandoverOrders />
-          ) : activeTab === 'Tất cả sản phẩm' ? (
-             <AllProducts onAddProduct={() => setActiveTab('Thêm sản phẩm')} />
-          ) : activeTab === 'Thêm sản phẩm' ? (
-             <AddProduct />
-          ) : activeTab === 'Đăng ký chiến dịch' ? (
-             <CampaignRegistration />
-          ) : activeTab === 'Chat với khách' ? (
-             <SellerChat />
-          ) : activeTab === 'Kho voucher' ? (
-             <ShopVouchers />
-          ) : activeTab === 'Doanh thu' ? (
-             <RevenueDashboard />
-          ) : activeTab === 'Yêu cầu rút tiền' ? (
-             <WithdrawalRequests />
-          ) : activeTab === 'Tài khoản ngân hàng' ? (
-             <BankAccounts />
-          ) : activeTab === 'Thống kê' ? (
-             <StatisticsDashboard />
-           ) : activeTab === 'Đánh giá shop' ? (
-              <ReviewManagement />
-          ) : (
-             <div className="content-panel">
-               <h2>{activeTab || 'Chào mừng đến với Kênh Người Bán'}</h2>
-               <div className="panel-body">
-                 <p>Đây là khu vực quản lý chức năng: <strong>{activeTab}</strong>. Tính năng đang trong quá trình phát triển.</p>
-               </div>
-             </div>
-          )}
+          <Outlet />
         </main>
+
+
+
+
+
+
+
+
       </div>
     </div>
   );

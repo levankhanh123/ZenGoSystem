@@ -1,5 +1,5 @@
 export const SELLER_API_BASE_URL =
-    import.meta.env.VITE_SELLER_API_URL?.trim() || '/api';
+    import.meta.env.VITE_SELLER_API_URL?.trim() || import.meta.env.VITE_API_BASE_URL?.trim() || '/api';
 
 export const SELLER_SOCKET_URL =
     import.meta.env.VITE_SELLER_SOCKET_URL?.trim() || `${window.location.protocol}//${window.location.hostname}:3001`;

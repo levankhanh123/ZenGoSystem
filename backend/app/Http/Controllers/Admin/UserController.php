@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\NguoiDung;
+use App\Models\NhatKyHoatDong;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -44,7 +45,7 @@ class UserController extends Controller
             });
         }
 
-        if ($request->filled('vai_tro')) {
+        if ($request->filled('vai_tro') && $request->input('vai_tro') !== 'tat_ca') {
             $query->whereIn('vai_tro', $this->normalizeRoles($request->input('vai_tro')));
         }
 
@@ -52,9 +53,13 @@ class UserController extends Controller
             $query->where('trang_thai', $request->input('trang_thai'));
         }
 
-        return response()->json([
-            'data' => $query->orderBy('created_at', 'desc')->get(),
-        ]);
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = $request->input('sort_order', 'desc');
+        $perPage = $request->input('per_page', 10);
+
+        $users = $query->orderBy($sortBy, $sortOrder)->paginate($perPage);
+
+        return response()->json($users);
     }
 
     public function show(NguoiDung $nguoiDung): JsonResponse
@@ -82,9 +87,18 @@ class UserController extends Controller
             'ghi_chu' => 'nullable|string',
         ]);
 
+        $oldStatus = $nguoiDung->trang_thai;
         $nguoiDung->update([
             'trang_thai' => $data['trang_thai'],
             'ghi_chu' => $data['ghi_chu'] ?? $nguoiDung->ghi_chu,
+        ]);
+
+        NhatKyHoatDong::create([
+            'nguoi_dung_id' => $nguoiDung->id,
+            'hanh_dong' => 'update_status',
+            'mo_ta' => "Cập nhật trạng thái từ {$oldStatus} sang {$data['trang_thai']}. Ghi chú: " . ($data['ghi_chu'] ?? 'Không có'),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
 
         $notificationService->sendToUser(
@@ -109,10 +123,19 @@ class UserController extends Controller
         $updatedUsers = NguoiDung::query()
             ->whereIn('id', $data['ids'])
             ->get()
-            ->map(function (NguoiDung $user) use ($data, $notificationService) {
+            ->map(function (NguoiDung $user) use ($data, $notificationService, $request) {
+                $oldStatus = $user->trang_thai;
                 $user->update([
                     'trang_thai' => $data['trang_thai'],
                     'ghi_chu' => $data['ghi_chu'] ?? $user->ghi_chu,
+                ]);
+
+                NhatKyHoatDong::create([
+                    'nguoi_dung_id' => $user->id,
+                    'hanh_dong' => 'bulk_update_status',
+                    'mo_ta' => "Cập nhật trạng thái hàng loạt từ {$oldStatus} sang {$data['trang_thai']}. Ghi chú: " . ($data['ghi_chu'] ?? 'Không có'),
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
                 ]);
 
                 $notificationService->sendToUser(

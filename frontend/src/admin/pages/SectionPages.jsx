@@ -31,6 +31,10 @@ export function CampaignRegistrationsPage() {
     return <Campaigns view="registrations" />;
 }
 
+export function CampaignShopVouchersPage() {
+    return <Campaigns view="shop-vouchers" />;
+}
+
 export function CampaignCreatePage() {
     return <Campaigns view="create" />;
 }

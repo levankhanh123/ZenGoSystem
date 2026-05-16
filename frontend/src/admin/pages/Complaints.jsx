@@ -1,4 +1,5 @@
 import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { RefreshCcw } from "lucide-react";
 import SavedFilterViews from "../components/SavedFilterViews";
 import { get, post, put } from "../lib/api";
 import { adminChatStyles, adminStyles } from "../lib/adminStyles";
@@ -1160,6 +1161,31 @@ export default function Complaints({ view = "overview" }) {
     if (isConversationFocusedView) {
     return (
         <div className={adminStyles.pageStack}>
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Hội thoại chi tiết</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => window.history.back()}
+                            className={adminStyles.secondaryButton}
+                        >
+                            Quay lại
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>CHAT</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {error ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {error}
@@ -1639,6 +1665,33 @@ export default function Complaints({ view = "overview" }) {
 
     return (
         <div className={adminStyles.pageStack}>
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Khiếu nại & Chat</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleRefreshAll}
+                            disabled={loading || chatLoading}
+                            className={adminStyles.secondaryButton}
+                        >
+                            <RefreshCcw size={16} className={(loading || chatLoading) ? "animate-spin mr-2" : "mr-2"} />
+                            Làm mới
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>SUPPORT</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
             )}

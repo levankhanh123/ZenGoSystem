@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { Search, Filter, MoreVertical, ShieldAlert, ShieldCheck, UserPlus, RefreshCcw, Download, Trash2, Mail, Phone, MapPin, Calendar, Clock, BarChart3, TrendingUp, Users as UsersIcon, ChevronRight, X } from "lucide-react";
 import SavedFilterViews from "../components/SavedFilterViews";
 import { get, put } from "../lib/api";
 import { adminStyles } from "../lib/adminStyles";
@@ -74,11 +75,19 @@ function getBuyerRiskLabel(level) {
 }
 
 export default function Users() {
+    const mounted = useRef(true);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
     const [submittingId, setSubmittingId] = useState(null);
     const [bulkSubmitting, setBulkSubmitting] = useState(false);
+    const [totalUsers, setTotalUsers] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+    const [activeRole, setActiveRole] = useState("tat_ca"); // tat_ca, nguoi_mua, nguoi_ban, giao_hang, quan_tri
+    const [userLogs, setUserLogs] = useState([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState("info"); // info, activity
     const [filters, setFilters] = useUrlFilterState({
         keyword: "",
         trang_thai: "",
@@ -93,40 +102,52 @@ export default function Users() {
     const [error, setError] = useState(null);
     const savedViews = useSavedFilterViews("admin-users-views", filters, setFilters);
 
-    useEffect(() => {
-        let mounted = true;
-
-        const fetchUsers = async () => {
+    const fetchUsers = async (isRefresh = false) => {
+        if (!isRefresh) {
             setLoading(true);
-            setError(null);
+        }
+        setError(null);
 
-            try {
-                const response = await get("/api/admin/users", {
-                    vai_tro: "nguoi_mua",
-                    keyword: filters.keyword,
-                    trang_thai: filters.trang_thai,
-                });
+        try {
+            console.log("[Users] Fetching users...", { activeRole, currentPage, filters });
+            const response = await get("/api/admin/users", {
+                vai_tro: activeRole,
+                keyword: filters.keyword,
+                trang_thai: filters.trang_thai,
+                page: currentPage,
+                per_page: perPage,
+            });
+            console.log("[Users] Response received:", response);
 
-                if (mounted) {
-                    setUsers(response.data || []);
-                }
-            } catch {
-                if (mounted) {
-                    setError("Không thể tải danh sách người mua.");
-                }
-            } finally {
-                if (mounted) {
-                    setLoading(false);
-                }
+            if (mounted.current) {
+                // Backend returns a paginated response (data, total, current_page, etc.)
+                setUsers(response.data || []);
+                setTotalUsers(response.total || response.data?.length || 0);
             }
-        };
+        } catch (err) {
+            console.error("[Users] Fetch error:", err);
+            if (mounted.current) {
+                setError("Không thể tải danh sách người dùng. Vui lòng thử lại.");
+            }
+        } finally {
+            if (mounted.current) {
+                setLoading(false);
+            }
+        }
+    };
 
+    useEffect(() => {
+        mounted.current = true;
         fetchUsers();
 
         return () => {
-            mounted = false;
+            mounted.current = false;
         };
-    }, [filters.keyword, filters.trang_thai]);
+    }, [filters.keyword, filters.trang_thai, activeRole, currentPage]);
+
+    const handleRefresh = () => {
+        fetchUsers(true);
+    };
 
     const summaryStats = useMemo(() => {
         return {
@@ -158,13 +179,29 @@ export default function Users() {
         setSelectedUserIds((current) => current.filter((id) => filteredUsers.some((user) => user.id === id)));
     }, [filteredUsers]);
 
+    const fetchUserLogs = async (userId) => {
+        setLogsLoading(true);
+        try {
+            const response = await get("/api/admin/activity-logs", { user_id: userId });
+            setUserLogs(response.data || []);
+        } catch (err) {
+            console.error("Failed to fetch logs:", err);
+        } finally {
+            setLogsLoading(false);
+        }
+    };
+
     const handleOpenUser = async (user) => {
         setSelectedUser(user);
+        setActiveTab("info");
         setDetailLoading(true);
+        setUserLogs([]);
 
         try {
             const response = await get(`/api/admin/users/${user.id}`);
-            setSelectedUser(response.data || user);
+            const fullUser = response.data || user;
+            setSelectedUser(fullUser);
+            fetchUserLogs(user.id);
         } catch {
             setError("Không thể tải chi tiết người dùng.");
         } finally {
@@ -253,20 +290,38 @@ export default function Users() {
 
     return (
         <div className={adminStyles.pageStack}>
-            <section className={adminStyles.pageHero}>
-                <div>
-                    <span className={adminStyles.eyebrow}>Người mua</span>
-                    <h3 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 md:text-[2.25rem] md:leading-[1.1]">
-                        Kiểm soát người mua và tài khoản rủi ro.
-                    </h3>
-                </div>
-            </section>
-
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {error}
                 </div>
             )}
+
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Quản lý người dùng</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            className={adminStyles.secondaryButton}
+                        >
+                            <RefreshCcw size={16} className={loading ? "animate-spin mr-2" : "mr-2"} />
+                            Làm mới dữ liệu
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>NGƯỜI DÙNG</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className={`${adminStyles.statCard} p-5`}>
@@ -287,11 +342,31 @@ export default function Users() {
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">blocked</p>
                 </div>
 
-                <div className={`${adminStyles.statCard} p-5`}>
-                    <p className="text-sm text-slate-500">Chi tiêu</p>
-                    <h4 className="mt-2 text-3xl font-bold text-blue-700">{formatCurrency(summaryStats.tongChiTieu)}</h4>
-                    <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">gmv from buyers</p>
-                </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2">
+                {[
+                    { id: "tat_ca", label: "Tất cả" },
+                    { id: "nguoi_mua", label: "Người mua" },
+                    { id: "nguoi_ban", label: "Người bán" },
+                    { id: "giao_hang", label: "Shipper" },
+                    { id: "quan_tri", label: "Quản trị viên" },
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => {
+                            setActiveRole(tab.id);
+                            setCurrentPage(1);
+                        }}
+                        className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-bold transition ${
+                            activeRole === tab.id
+                                ? "bg-[#ee4d2d] text-white shadow-lg shadow-[#ee4d2d]/20"
+                                : "bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
             <div className={`${adminStyles.panel} rounded-[30px] p-5 md:p-6`}>
@@ -407,8 +482,8 @@ export default function Users() {
 
             <div className={`${adminStyles.tableCard} p-5 md:p-6`}>
                 <div className="mb-4 flex items-center justify-between">
-                    <h4 className={adminStyles.sectionTitle}>Danh sách người mua</h4>
-                    <span className={adminStyles.chip}>Tổng: {filteredUsers.length}</span>
+                    <h4 className={adminStyles.sectionTitle}>Danh sách người dùng</h4>
+                    <span className={adminStyles.chip}>Hiển thị: {users.length} / Tổng: {totalUsers}</span>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -418,7 +493,7 @@ export default function Users() {
                                 <th className="px-4 py-3">
                                     <input
                                         type="checkbox"
-                                        checked={filteredUsers.length > 0 && selectedVisibleCount === filteredUsers.length}
+                                        checked={users.length > 0 && selectedVisibleCount === users.length}
                                         onChange={handleToggleAllUsers}
                                     />
                                 </th>
@@ -435,7 +510,7 @@ export default function Users() {
                         </thead>
 
                         <tbody>
-                            {filteredUsers.map((user) => {
+                            {users.map((user) => {
                                 const riskLevel = getBuyerRiskLevel(user);
 
                                 return (
@@ -492,10 +567,10 @@ export default function Users() {
                                 );
                             })}
 
-                            {!loading && filteredUsers.length === 0 && (
+                            {!loading && users.length === 0 && (
                                 <tr>
                                     <td colSpan="10" className="px-4 py-8 text-center text-slate-500">
-                                        Không có dữ liệu người mua
+                                        Không có dữ liệu người dùng
                                     </td>
                                 </tr>
                             )}
@@ -509,6 +584,28 @@ export default function Users() {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                <div className="mt-6 flex items-center justify-between border-t pt-4">
+                    <div className="text-sm text-slate-500">
+                        Trang {currentPage} / {Math.ceil(totalUsers / perPage) || 1}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            disabled={currentPage === 1 || loading}
+                            onClick={() => setCurrentPage((prev) => prev - 1)}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            Trước
+                        </button>
+                        <button
+                            disabled={currentPage * perPage >= totalUsers || loading}
+                            onClick={() => setCurrentPage((prev) => prev + 1)}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            Sau
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -550,74 +647,139 @@ export default function Users() {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-2">
-                            <div className="space-y-6">
-                                <div className={`${adminStyles.detailCard} p-4`}>
-                                    <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Thông tin cá nhân</h4>
+                        <div className="flex border-b border-[rgba(132,86,72,0.1)] px-6">
+                            <button
+                                onClick={() => setActiveTab("info")}
+                                className={`px-4 py-3 text-sm font-bold transition-colors ${
+                                    activeTab === "info"
+                                        ? "border-b-2 border-[#ee4d2d] text-[#ee4d2d]"
+                                        : "text-slate-500 hover:text-slate-700"
+                                }`}
+                            >
+                                Thông tin cơ bản
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("activity")}
+                                className={`px-4 py-3 text-sm font-bold transition-colors ${
+                                    activeTab === "activity"
+                                        ? "border-b-2 border-[#ee4d2d] text-[#ee4d2d]"
+                                        : "text-slate-500 hover:text-slate-700"
+                                }`}
+                            >
+                                Nhật ký hoạt động
+                            </button>
+                        </div>
 
-                                    <div className="space-y-3 text-sm text-slate-700">
-                                        <p>Họ tên: {selectedUser.ho_ten}</p>
-                                        <p>Ngày sinh: {selectedUser.ngay_sinh || "--"}</p>
-                                        <p>Giới tính: {formatGender(selectedUser.gioi_tinh)}</p>
-                                        <p>Email: {selectedUser.email}</p>
-                                        <p>Số điện thoại: {selectedUser.so_dien_thoai || "--"}</p>
-                                        <p>Địa chỉ: {selectedUser.dia_chi_mac_dinh || "--"}</p>
-                                        <p>
-                                            Ngày tham gia: {selectedUser.created_at
-                                                ? new Date(selectedUser.created_at).toLocaleString("vi-VN")
-                                                : "--"}
-                                        </p>
+                        <div className="max-h-[60vh] overflow-y-auto px-6 py-6">
+                            {activeTab === "info" ? (
+                                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                    <div className="space-y-6">
+                                        <div className={`${adminStyles.detailCard} p-4`}>
+                                            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Thông tin cá nhân</h4>
+
+                                            <div className="space-y-3 text-sm text-slate-700">
+                                                <p>Họ tên: {selectedUser.ho_ten}</p>
+                                                <p>Ngày sinh: {selectedUser.ngay_sinh || "--"}</p>
+                                                <p>Giới tính: {formatGender(selectedUser.gioi_tinh)}</p>
+                                                <p>Email: {selectedUser.email}</p>
+                                                <p>Số điện thoại: {selectedUser.so_dien_thoai || "--"}</p>
+                                                <p>Địa chỉ: {selectedUser.dia_chi_mac_dinh || "--"}</p>
+                                                <p>
+                                                    Ngày tham gia: {selectedUser.created_at
+                                                        ? new Date(selectedUser.created_at).toLocaleString("vi-VN")
+                                                        : "--"}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className={`${adminStyles.detailCard} p-4`}>
+                                            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Ghi chú nội bộ</h4>
+                                            <p className="text-sm text-slate-700">{selectedUser.ghi_chu || "Không có ghi chú"}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div className={`${adminStyles.detailCard} p-4`}>
+                                            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Hành vi mua hàng</h4>
+
+                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                                <div className="rounded-2xl bg-slate-50 p-4">
+                                                    <p className="text-slate-500">Tổng đơn hàng</p>
+                                                    <p className="mt-2 font-semibold text-slate-800">{selectedUser.tong_don_hang ?? 0}</p>
+                                                </div>
+
+                                                <div className="rounded-2xl bg-slate-50 p-4">
+                                                    <p className="text-slate-500">Tổng chi tiêu</p>
+                                                    <p className="mt-2 font-semibold text-blue-700">{formatCurrency(selectedUser.tong_chi_tieu)}</p>
+                                                </div>
+
+                                                <div className="rounded-2xl bg-slate-50 p-4">
+                                                    <p className="text-slate-500">Đơn hoàn tất</p>
+                                                    <p className="mt-2 font-semibold text-green-700">{selectedUser.don_hoan_tat ?? 0}</p>
+                                                </div>
+
+                                                <div className="rounded-2xl bg-slate-50 p-4">
+                                                    <p className="text-slate-500">Đơn hủy</p>
+                                                    <p className="mt-2 font-semibold text-red-700">{selectedUser.don_huy ?? 0}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className={`${adminStyles.detailCard} p-4`}>
+                                            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Đánh giá rủi ro nội bộ</h4>
+                                            <div className="space-y-3 text-sm text-slate-700">
+                                                <p>
+                                                    Mức độ:{" "}
+                                                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${getBuyerRiskClass(getBuyerRiskLevel(selectedUser))}`}>
+                                                        {getBuyerRiskLabel(getBuyerRiskLevel(selectedUser))}
+                                                    </span>
+                                                </p>
+                                                <p>Thông báo: {selectedUser.thong_bao_count ?? 0}</p>
+                                                <p>Khiếu nại: {selectedUser.complaints_count ?? 0}</p>
+                                                <p>Hội thoại hỗ trợ: {selectedUser.conversations_count ?? 0}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <div className={`${adminStyles.detailCard} p-4`}>
-                                    <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Ghi chú nội bộ</h4>
-                                    <p className="text-sm text-slate-700">{selectedUser.ghi_chu || "Không có ghi chú"}</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Lịch sử hoạt động gần đây</h4>
+                                    {logsLoading ? (
+                                        <div className="py-10 text-center text-slate-500">Đang tải nhật ký...</div>
+                                    ) : userLogs.length > 0 ? (
+                                        <div className="overflow-hidden rounded-2xl border border-slate-200">
+                                            <table className="w-full text-left text-sm">
+                                                <thead className="bg-slate-50">
+                                                    <tr>
+                                                        <th className="px-4 py-3 font-semibold text-slate-700">Thời gian</th>
+                                                        <th className="px-4 py-3 font-semibold text-slate-700">Hành động</th>
+                                                        <th className="px-4 py-3 font-semibold text-slate-700">Mô tả</th>
+                                                        <th className="px-4 py-3 font-semibold text-slate-700">IP</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {userLogs.map((log) => (
+                                                        <tr key={log.id} className="border-t">
+                                                            <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                                                                {new Date(log.created_at).toLocaleString("vi-VN")}
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <span className="rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold uppercase text-blue-600">
+                                                                    {log.hanh_dong}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-700">{log.mo_ta}</td>
+                                                            <td className="px-4 py-3 text-slate-500">{log.ip_address}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="py-10 text-center text-slate-500">Chưa có hoạt động nào được ghi nhận.</div>
+                                    )}
                                 </div>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div className={`${adminStyles.detailCard} p-4`}>
-                                    <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Hành vi mua hàng</h4>
-
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div className="rounded-2xl bg-slate-50 p-4">
-                                            <p className="text-slate-500">Tổng đơn hàng</p>
-                                            <p className="mt-2 font-semibold text-slate-800">{selectedUser.tong_don_hang ?? 0}</p>
-                                        </div>
-
-                                        <div className="rounded-2xl bg-slate-50 p-4">
-                                            <p className="text-slate-500">Tổng chi tiêu</p>
-                                            <p className="mt-2 font-semibold text-blue-700">{formatCurrency(selectedUser.tong_chi_tieu)}</p>
-                                        </div>
-
-                                        <div className="rounded-2xl bg-slate-50 p-4">
-                                            <p className="text-slate-500">Đơn hoàn tất</p>
-                                            <p className="mt-2 font-semibold text-green-700">{selectedUser.don_hoan_tat ?? 0}</p>
-                                        </div>
-
-                                        <div className="rounded-2xl bg-slate-50 p-4">
-                                            <p className="text-slate-500">Đơn hủy</p>
-                                            <p className="mt-2 font-semibold text-red-700">{selectedUser.don_huy ?? 0}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className={`${adminStyles.detailCard} p-4`}>
-                                    <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Đánh giá rủi ro nội bộ</h4>
-                                    <div className="space-y-3 text-sm text-slate-700">
-                                        <p>
-                                            Mức độ:{" "}
-                                            <span className={`rounded-full px-3 py-1 text-xs font-medium ${getBuyerRiskClass(getBuyerRiskLevel(selectedUser))}`}>
-                                                {getBuyerRiskLabel(getBuyerRiskLevel(selectedUser))}
-                                            </span>
-                                        </p>
-                                        <p>Thông báo: {selectedUser.thong_bao_count ?? 0}</p>
-                                        <p>Khiếu nại: {selectedUser.complaints_count ?? 0}</p>
-                                        <p>Hội thoại hỗ trợ: {selectedUser.conversations_count ?? 0}</p>
-                                    </div>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>

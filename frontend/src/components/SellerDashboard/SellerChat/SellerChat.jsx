@@ -1,735 +1,378 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import api from '../../../api/axios';
-import { useSellerSession } from '../../../contexts/SellerSessionContext';
+import React, { useState, useEffect, useRef } from 'react';
+import axiosInstance from '../../../services/axiosConfig';
 import { getSellerSocketClient } from '../../../lib/socketClient';
-import './SellerChat.css';
+import { useAuth } from '../../../contexts/Authcontext';
+import { useSellerSession } from '../../../contexts/SellerSessionContext';
 
-const socket = getSellerSocketClient();
+const QUICK_RESPONSES = [
+    "ZenGo Shop chào bạn, sản phẩm này hiện vẫn còn hàng ạ!",
+    "Dạ, bạn cần hỗ trợ thêm thông tin gì về sản phẩm ạ?",
+    "Cảm ơn bạn đã quan tâm đến sản phẩm của shop. Đơn hàng sẽ được giao trong 2-3 ngày tới.",
+    "Rất tiếc sản phẩm này hiện tại đã hết màu/size bạn chọn."
+];
 
-const getSupportConversationRoom = (chat) => {
-    if (!chat || chat.conversationType !== 'support') {
-        return null;
-    }
-
-    return `conversation.${chat.backendId}`;
-};
-
-const getTypingRoom = (chat) => {
-    if (!chat) {
-        return null;
-    }
-
-    if (chat.conversationType === 'support') {
-        return `conversation.${chat.backendId}`;
-    }
-
-    if (chat.conversationType === 'customer') {
-        return `customer.${chat.backendId}`;
-    }
-
-    return null;
-};
-
-const emitWhenConnected = (eventName, payload) => {
-    const send = () => {
-        socket.emit(eventName, payload);
-    };
-
-    if (socket.connected) {
-        send();
-        return;
-    }
-
-    const handleConnect = () => {
-        socket.off('connect', handleConnect);
-        send();
-    };
-
-    socket.on('connect', handleConnect);
-    socket.connect();
-};
-
-const SellerChat = () => {
-    const { selectedShop, selectedUser } = useSellerSession();
-    const [chats, setChats] = useState([]);
-    const [messagesByChat, setMessagesByChat] = useState({});
-    const [activeChatId, setActiveChatId] = useState(null);
-    const [messageInput, setMessageInput] = useState('');
-    const [typingByChat, setTypingByChat] = useState({});
-    const [chatFilters, setChatFilters] = useState({
-        keyword: '',
-        scope: '',
-        unread: '',
-    });
+export default function SellerChat() {
+    const [conversations, setConversations] = useState([]);
+    const [activeConversation, setActiveConversation] = useState(null);
+    const [messages, setMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [filter, setFilter] = useState('all'); // all, unread
+    const [socket, setSocket] = useState(null);
+    const [socketConnected, setSocketConnected] = useState(false);
     const messagesEndRef = useRef(null);
-    const stopTypingTimeoutRef = useRef(null);
-    const clearTypingIndicatorTimeoutRef = useRef(null);
-    const chatsRef = useRef([]);
-    const activeChatIdRef = useRef(null);
-    const activeChatRef = useRef(null);
-    const selectedShopIdRef = useRef(null);
-    const selectedUserIdRef = useRef(null);
 
-    const activeChat = chats.find(chat => chat.id === activeChatId) || null;
-
-    useEffect(() => {
-        chatsRef.current = chats;
-    }, [chats]);
+    const { user: authUser } = useAuth();
+    const { selectedUser } = useSellerSession();
+    
+    // Identify current seller robustly
+    const currentUser = selectedUser || authUser || JSON.parse(localStorage.getItem('user'));
+    const currentUserId = Number(currentUser?.id || currentUser?.nguoi_dung_id);
+    
+    const activeConversationRef = useRef(null);
 
     useEffect(() => {
-        activeChatIdRef.current = activeChatId;
-        activeChatRef.current = activeChat;
-    }, [activeChat, activeChatId]);
+        activeConversationRef.current = activeConversation;
+    }, [activeConversation]);
 
     useEffect(() => {
-        selectedShopIdRef.current = selectedShop?.id || null;
-    }, [selectedShop?.id]);
+        if (!currentUserId) return;
 
-    useEffect(() => {
-        selectedUserIdRef.current = selectedUser?.id || null;
-    }, [selectedUser?.id]);
-
-    const emitChatTyping = (isTyping) => {
-        if (!activeChat || !selectedUser?.id) {
-            return;
-        }
-
-        const room = getTypingRoom(activeChat);
-
-        if (!room) {
-            return;
-        }
-
-        emitWhenConnected('conversation.typing', {
-            room,
-            conversationId: activeChat.backendId,
-            conversationType: activeChat.conversationType,
-            senderId: selectedUser.id,
-            senderName: selectedUser.ho_ten || selectedUser.email || 'Seller',
-            senderRole: selectedUser.vai_tro || 'nguoi_ban',
-            isTyping,
-        });
-    };
-
-    useEffect(() => {
-        const handleReceiveMessage = (data) => {
-            console.log('Received real-time message via socket:', data);
-            const chatKey = `customer-${data.cuoc_tro_chuyen_id}`;
-            const currentActiveChatId = activeChatIdRef.current;
-            
-            setMessagesByChat(prev => {
-                const roomMessages = prev[chatKey] || [];
-
-                if (roomMessages.find(m => m.id === data.id)) return prev;
-                
-                return {
-                    ...prev,
-                    [chatKey]: [...roomMessages, data]
-                };
-            });
-
-            setChats(prevChats => prevChats.map(c => {
-                if (c.id === chatKey) {
-                    return { 
-                        ...c, 
-                        lastMessage: data.noi_dung, 
-                        unread: (currentActiveChatId !== chatKey) ? (c.unread || 0) + 1 : 0 
-                    };
-                }
-                return c;
-            }));
-        };
-
-        const handleConversationUpdated = async (payload) => {
-            const currentShopId = selectedShopIdRef.current;
-            const currentChats = chatsRef.current;
-            const currentActiveChatId = activeChatIdRef.current;
-            const currentActiveChat = activeChatRef.current;
-
-            if (!currentShopId) {
-                return;
-            }
-
-            const supportChatId = `support-${payload.conversationId}`;
-            const hasSupportChat = currentChats.some(chat => chat.id === supportChatId);
-
-            if (!hasSupportChat && payload.shopId && Number(payload.shopId) !== Number(currentShopId)) {
-                return;
-            }
-
-            await fetchConversations();
-
-            if (currentActiveChatId === supportChatId || (currentActiveChat?.conversationType === 'support' && currentActiveChat.backendId === payload.conversationId)) {
-                await fetchMessages(supportChatId);
-            }
-        };
-
-        const handleConversationTyping = (payload) => {
-            const currentChats = chatsRef.current;
-            const currentSelectedUserId = selectedUserIdRef.current;
-
-            if (!currentChats.length) {
-                return;
-            }
-
-            const payloadRoom = String(
-                payload?.room || payload?.conversationRoom || (payload?.conversationType === 'customer'
-                    ? `customer.${payload?.conversationId || ''}`
-                    : `conversation.${payload?.conversationId || ''}`)
-            ).trim();
-
-            const matchedChat = currentChats.find((chat) => getTypingRoom(chat) === payloadRoom);
-
-            if (!matchedChat) {
-                return;
-            }
-
-            if (Number(payload?.senderId) === Number(currentSelectedUserId)) {
-                return;
-            }
-
-            if (!payload?.isTyping) {
-                setTypingByChat((current) => {
-                    const next = { ...current };
-                    delete next[matchedChat.id];
-                    return next;
-                });
-
-                if (clearTypingIndicatorTimeoutRef.current) {
-                    clearTimeout(clearTypingIndicatorTimeoutRef.current);
-                    clearTypingIndicatorTimeoutRef.current = null;
-                }
-
-                return;
-            }
-
-            const senderName = payload.senderName || (matchedChat.conversationType === 'support' ? 'Admin' : 'Khách hàng');
-            setTypingByChat((current) => ({
-                ...current,
-                [matchedChat.id]: `${senderName} đang nhập tin nhắn`,
-            }));
-
-            if (clearTypingIndicatorTimeoutRef.current) {
-                clearTimeout(clearTypingIndicatorTimeoutRef.current);
-            }
-
-            clearTypingIndicatorTimeoutRef.current = setTimeout(() => {
-                setTypingByChat((current) => {
-                    const next = { ...current };
-                    delete next[matchedChat.id];
-                    return next;
-                });
-                clearTypingIndicatorTimeoutRef.current = null;
-            }, 1600);
-        };
-
-        socket.on('receive_message', handleReceiveMessage);
-        socket.on('conversation.updated', handleConversationUpdated);
-        socket.on('conversation.typing', handleConversationTyping);
-
-        return () => {
-            socket.off('receive_message', handleReceiveMessage);
-            socket.off('conversation.updated', handleConversationUpdated);
-            socket.off('conversation.typing', handleConversationTyping);
-        };
-    }, []);
-
-    useEffect(() => {
-        return () => {
-            if (stopTypingTimeoutRef.current) {
-                clearTimeout(stopTypingTimeoutRef.current);
-            }
-
-            if (clearTypingIndicatorTimeoutRef.current) {
-                clearTimeout(clearTypingIndicatorTimeoutRef.current);
-            }
-        };
-    }, []);
-
-    useEffect(() => {
         fetchConversations();
-    }, [selectedShop?.id, selectedUser?.id]);
+        const s = getSellerSocketClient();
+        setSocket(s);
 
-    useEffect(() => {
-        if (!selectedShop?.id) {
-            return undefined;
-        }
-
-        const rooms = Array.from(new Set([
-            `seller.shop.${selectedShop.id}`,
-            ...chats
-                .filter((chat) => chat.conversationType === 'customer')
-                .map((chat) => String(chat.backendId)),
-            ...chats
-                .map((chat) => getSupportConversationRoom(chat))
-                .filter(Boolean),
-            ...chats
-                .map((chat) => getTypingRoom(chat))
-                .filter(Boolean),
-        ]));
-
-        const joinRooms = () => {
-            rooms.forEach((room) => socket.emit('join_room', room));
+        const onConnect = () => {
+            console.log('Seller socket connected');
+            setSocketConnected(true);
+            s.emit('join_room', `user.${currentUserId}`);
         };
 
-        socket.connect();
+        const onDisconnect = () => {
+            console.log('Seller socket disconnected');
+            setSocketConnected(false);
+        };
 
-        if (socket.connected) {
-            joinRooms();
+        const onReceiveMessage = (message) => {
+            console.log('Seller received message via socket:', message);
+            if (activeConversationRef.current && Number(message.hoi_thoai_id) === Number(activeConversationRef.current.id)) {
+                setMessages(prev => {
+                    if (prev.some(m => m.id === message.id)) return prev;
+                    return [...prev, message];
+                });
+                setTimeout(scrollToBottom, 100);
+            }
+            fetchConversations();
+        };
+
+        const onConversationUpdated = (updatedConv) => {
+            console.log('Seller received conversation update:', updatedConv);
+            
+            // 1. Update the conversation in the sidebar list
+            setConversations(prev => prev.map(c => 
+                Number(c.id) === Number(updatedConv.id) ? { ...c, ...updatedConv } : c
+            ));
+
+            // 2. If this is the active conversation, update its data (especially context_data)
+            if (activeConversationRef.current && Number(updatedConv.id) === Number(activeConversationRef.current.id)) {
+                setActiveConversation(prev => ({ ...prev, ...updatedConv }));
+            }
+        };
+
+        s.on('connect', onConnect);
+        s.on('disconnect', onDisconnect);
+        s.on('receive_message', onReceiveMessage);
+        s.on('conversation_updated', onConversationUpdated);
+
+        if (!s.connected) {
+            s.connect();
+        } else {
+            onConnect();
         }
-
-        socket.on('connect', joinRooms);
 
         return () => {
-            socket.off('connect', joinRooms);
-            rooms.forEach((room) => socket.emit('leave_room', room));
+            s.off('connect', onConnect);
+            s.off('disconnect', onDisconnect);
+            s.off('receive_message', onReceiveMessage);
+            s.off('conversation_updated', onConversationUpdated);
         };
-    }, [chats, selectedShop?.id]);
+    }, [currentUserId]);
+
+    useEffect(() => {
+        if (activeConversation && socket) {
+            socket.emit('join_room', activeConversation.id);
+            fetchMessages(activeConversation.id);
+            return () => {
+                socket.emit('leave_room', activeConversation.id);
+            };
+        }
+    }, [activeConversation, socket]);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
     const fetchConversations = async () => {
         try {
-            if (!selectedShop?.id) {
-                setChats([]);
-                setActiveChatId(null);
-                return;
+            const res = await axiosInstance.get('/chat/conversations');
+            if (res.data.success) {
+                setConversations(res.data.data);
             }
-
-            const res = await api.get(`/chat/conversations/${selectedShop.id}`, {
-                params: {
-                    user_id: selectedUser?.id,
-                },
-            });
-            const formattedChats = (res.data || []).map(c => ({
-                id: c.id,
-                backendId: c.backend_id,
-                conversationType: c.conversation_type,
-                name: c.name,
-                isAdmin: Boolean(c.is_admin),
-                lastMessage: c.last_message || 'Chưa có tin nhắn',
-                unread: 0,
-                avatar: c.avatar || 'C',
-                time: c.updated_at ? new Date(c.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-            }));
-            setChats(formattedChats);
-            setActiveChatId(current => {
-                if (current && formattedChats.some(chat => chat.id === current)) {
-                    return current;
-                }
-
-                return formattedChats[0]?.id || null;
-            });
         } catch (error) {
             console.error('Error fetching conversations:', error);
         }
     };
 
-    const fetchMessages = async (roomId) => {
+    const fetchMessages = async (id) => {
         try {
-            const res = await api.get(`/chat/messages/${roomId}`);
-            setMessagesByChat(prev => ({
-                ...prev,
-                [roomId]: res.data || []
-            }));
+            const res = await axiosInstance.get(`/chat/${id}/messages`);
+            if (res.data.success) {
+                setMessages(res.data.data);
+                scrollToBottom();
+            }
         } catch (error) {
             console.error('Error fetching messages:', error);
         }
     };
 
-    const handleSelectChat = (roomId) => {
-        setActiveChatId(roomId);
-
-        // Đánh dấu đã đọc
-        setChats(prevChats => prevChats.map(c => 
-            c.id === roomId ? { ...c, unread: 0 } : c
-        ));
-
-        // Fetch tin nhắn nếu chưa từng load
-        if (!messagesByChat[roomId] || messagesByChat[roomId].length === 0) {
-            fetchMessages(roomId);
-        }
-    };
-
-    // Scroll to bottom when messages change
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messagesByChat, activeChatId]);
-
-    const handleSendMessage = async (e) => {
-        e.preventDefault();
-        if (!messageInput.trim() || !activeChatId) return;
-
-        const text = messageInput.trim();
-        setMessageInput(''); // Xoá input ngay lập tức cho mượt UI
-        emitChatTyping(false);
-
-        if (stopTypingTimeoutRef.current) {
-            clearTimeout(stopTypingTimeoutRef.current);
-            stopTypingTimeoutRef.current = null;
-        }
+    const handleSendMessage = async (e, text = newMessage) => {
+        if (e) e.preventDefault();
+        if (!text.trim() || !activeConversation) return;
 
         try {
-            if (!selectedUser?.id) {
-                return;
-            }
-
-            const chat = chats.find(item => item.id === activeChatId);
-
-            if (!chat) {
-                return;
-            }
-
-            const res = await api.post(`/chat/message`, {
-                conversation_id: chat.id,
-                nguoi_gui_id: selectedUser.id,
+            const res = await axiosInstance.post(`/chat/${activeConversation.id}/messages`, {
                 noi_dung: text,
                 loai_tin_nhan: 'text'
             });
 
-            const dbMessage = res.data.data;
+            if (res.data.success) {
+                const sentMessage = res.data.data;
 
-            if (chat.conversationType === 'customer') {
-                socket.emit('send_message', {
-                    ...dbMessage,
-                    cuoc_tro_chuyen_id: chat.backendId,
+                // Optimistic update
+                setMessages(prev => {
+                    const exists = prev.some(m => m.id === sentMessage.id);
+                    if (exists) return prev;
+                    return [...prev, sentMessage];
                 });
+                scrollToBottom();
+
+                socket.emit('send_message', { 
+                    ...sentMessage, 
+                    members: activeConversation.members 
+                });
+                if (text === newMessage) setNewMessage('');
             }
-
-            setMessagesByChat(prev => ({
-                ...prev,
-                [activeChatId]: [...(prev[activeChatId] || []), dbMessage]
-            }));
-
-            // Cập nhật last message trong list view panel trái
-            setChats(prevChats => prevChats.map(c => 
-                c.id === activeChatId ? { ...c, lastMessage: text } : c
-            ));
-
         } catch (error) {
             console.error('Error sending message:', error);
         }
     };
 
-    const handleMessageInputChange = (event) => {
-        const nextValue = event.target.value;
-        setMessageInput(nextValue);
-
-        if (!activeChat) {
-            return;
-        }
-
-        emitChatTyping(Boolean(nextValue.trim()));
-
-        if (stopTypingTimeoutRef.current) {
-            clearTimeout(stopTypingTimeoutRef.current);
-        }
-
-        if (!nextValue.trim()) {
-            stopTypingTimeoutRef.current = null;
-            return;
-        }
-
-        stopTypingTimeoutRef.current = setTimeout(() => {
-            emitChatTyping(false);
-            stopTypingTimeoutRef.current = null;
-        }, 1200);
+    const handleQuickResponse = (text) => {
+        handleSendMessage(null, text);
     };
 
-    const currentMessages = messagesByChat[activeChatId] || [];
-    const isSupportChat = activeChat?.conversationType === 'support';
-    const activeTypingLabel = activeChatId ? typingByChat[activeChatId] || '' : '';
-
-    const sortedChats = useMemo(() => [...chats].sort((a, b) => {
-        if (a.isAdmin) return -1;
-        if (b.isAdmin) return 1;
-        return 0;
-    }), [chats]);
-
-    const filteredChats = useMemo(() => {
-        const keyword = chatFilters.keyword.trim().toLowerCase();
-
-        return sortedChats.filter((chat) => {
-            if (chatFilters.scope === 'support' && chat.conversationType !== 'support') {
-                return false;
-            }
-
-            if (chatFilters.scope === 'customer' && chat.conversationType !== 'customer') {
-                return false;
-            }
-
-            if (chatFilters.unread === 'unread' && !(chat.unread > 0)) {
-                return false;
-            }
-
-            if (chatFilters.unread === 'read' && chat.unread > 0) {
-                return false;
-            }
-
-            if (!keyword) {
-                return true;
-            }
-
-            const searchTarget = [chat.name, chat.lastMessage, chat.id]
-                .filter(Boolean)
-                .join(' ')
-                .toLowerCase();
-
-            return searchTarget.includes(keyword);
-        });
-    }, [chatFilters, sortedChats]);
-
-    const chatStats = useMemo(() => ({
-        total: chats.length,
-        support: chats.filter((chat) => chat.conversationType === 'support').length,
-        unread: chats.filter((chat) => chat.unread > 0).length,
-    }), [chats]);
-
-    const hasActiveFilters = useMemo(() => {
-        return Boolean(chatFilters.keyword.trim() || chatFilters.scope || chatFilters.unread);
-    }, [chatFilters]);
-
     return (
-        <div className="seller-chat-container">
-            {!selectedShop && <div style={{padding: '12px 16px', marginBottom: '16px', borderRadius: '12px', background: '#fff4e5', color: '#9a3412'}}>Chưa có cửa hàng được chọn để mở chat khách hàng.</div>}
-            <div className="chat-layout">
-                {/* Left Sidebar - Conversation List */}
-                <div className="chat-sidebar">
-                    <div className="chat-sidebar-header">
-                        <div className="chat-sidebar-title-row seller-inbox-heading">
-                            <div>
-                                <p className="seller-inbox-eyebrow">Seller inbox</p>
-                                <h3>Tin nhắn</h3>
-                                <p className="seller-inbox-caption">Theo dõi khách hàng và kênh hỗ trợ shop trong một hàng chờ.</p>
-                            </div>
-                            <span className="support-guide-pill">{chatStats.total} chat</span>
-                        </div>
-
-                        <div className="seller-chat-stats-grid">
-                            <div className="seller-chat-stat-card">
-                                <span>Tổng hội thoại</span>
-                                <strong>{chatStats.total}</strong>
-                            </div>
-                            <div className="seller-chat-stat-card seller-chat-stat-card--support">
-                                <span>Kênh hỗ trợ</span>
-                                <strong>{chatStats.support}</strong>
-                            </div>
-                            <div className="seller-chat-stat-card seller-chat-stat-card--unread">
-                                <span>Chưa đọc</span>
-                                <strong>{chatStats.unread}</strong>
-                            </div>
-                        </div>
-
-                        <div className="seller-chat-filter-panel">
-                            <div className="chat-search">
-                                <input
-                                    type="text"
-                                    placeholder="Tìm tài khoản, mã chat, nội dung..."
-                                    value={chatFilters.keyword}
-                                    onChange={(event) => setChatFilters((current) => ({ ...current, keyword: event.target.value }))}
-                                />
-                            </div>
-
-                            <select
-                                value={chatFilters.scope}
-                                onChange={(event) => setChatFilters((current) => ({ ...current, scope: event.target.value }))}
-                                className="seller-chat-filter-select"
-                            >
-                                <option value="">Tất cả loại chat</option>
-                                <option value="support">Kênh hỗ trợ admin</option>
-                                <option value="customer">Chat khách hàng</option>
-                            </select>
-
-                            <select
-                                value={chatFilters.unread}
-                                onChange={(event) => setChatFilters((current) => ({ ...current, unread: event.target.value }))}
-                                className="seller-chat-filter-select"
-                            >
-                                <option value="">Tất cả trạng thái</option>
-                                <option value="unread">Ưu tiên chưa đọc</option>
-                                <option value="read">Đã xử lý</option>
-                            </select>
-
-                            <div className="seller-chat-quick-filters">
-                                <button
-                                    type="button"
-                                    className={`seller-chat-quick-filter ${!hasActiveFilters ? 'active' : ''}`}
-                                    onClick={() => setChatFilters({ keyword: '', scope: '', unread: '' })}
-                                >
-                                    Tất cả
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`seller-chat-quick-filter ${chatFilters.unread === 'unread' ? 'active' : ''}`}
-                                    onClick={() => setChatFilters((current) => ({ ...current, unread: current.unread === 'unread' ? '' : 'unread' }))}
-                                >
-                                    Cần phản hồi
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`seller-chat-quick-filter ${chatFilters.scope === 'support' ? 'active support' : ''}`}
-                                    onClick={() => setChatFilters((current) => ({ ...current, scope: current.scope === 'support' ? '' : 'support' }))}
-                                >
-                                    Admin
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`seller-chat-quick-filter ${chatFilters.scope === 'customer' ? 'active customer' : ''}`}
-                                    onClick={() => setChatFilters((current) => ({ ...current, scope: current.scope === 'customer' ? '' : 'customer' }))}
-                                >
-                                    Khách
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="chat-list">
-                        {sortedChats.length === 0 && <div className="seller-chat-loading-state">Đang tải cuộc trò chuyện...</div>}
-                        {sortedChats.length > 0 && filteredChats.length === 0 && <div className="seller-chat-empty-state">Không có hội thoại phù hợp với bộ lọc hiện tại.</div>}
-                        {filteredChats.map(chat => (
-                            <div 
-                                key={chat.id} 
-                                className={`chat-item ${activeChatId === chat.id ? 'active' : ''} ${chat.isAdmin ? 'admin-chat' : ''}`}
-                                onClick={() => handleSelectChat(chat.id)}
-                            >
-                                <div className="chat-avatar">
-                                    {chat.isAdmin ? <span className="admin-icon">🛡️</span> : chat.avatar}
-                                </div>
-                                <div className="chat-item-content">
-                                    <div className="chat-item-header">
-                                        <div className="chat-title-stack">
-                                            <span className="chat-name">{chat.name}</span>
-                                            {chat.conversationType === 'support' && <span className="chat-type-pill">Kênh hỗ trợ</span>}
-                                        </div>
-                                        <span className="chat-time">{chat.time || 'Vừa xong'}</span>
-                                    </div>
-                                    <div className="chat-item-bottom">
-                                        <span className={`chat-last-msg ${typingByChat[chat.id] ? 'typing' : chat.unread > 0 ? 'unread' : ''}`}>
-                                            {typingByChat[chat.id] || chat.lastMessage}
-                                        </span>
-                                        {chat.unread > 0 && <span className="chat-badge">{chat.unread}</span>}
-                                    </div>
-                                    <div className="chat-item-tags">
-                                        <span className={`chat-meta-pill ${chat.conversationType === 'support' ? 'chat-meta-pill--support' : ''}`}>
-                                            {chat.conversationType === 'support' ? 'Admin CSKH' : 'Khách hàng'}
-                                        </span>
-                                        <span className={`chat-meta-pill ${chat.unread > 0 ? 'chat-meta-pill--hot' : ''}`}>
-                                            {chat.unread > 0 ? 'Cần phản hồi' : 'Ổn định'}
-                                        </span>
-                                    </div>
-                                    <div className="chat-item-meta-row">
-                                        <span>{chat.conversationType === 'support' ? 'Thread hỗ trợ trực tiếp' : 'Luồng chat khách hàng'}</span>
-                                        <span className="chat-thread-id">#{chat.id}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+        <div className="flex h-[calc(100vh-120px)] w-full bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            {/* Left Sidebar - Chat List */}
+            <div className="w-80 bg-white border-r border-slate-200 flex flex-col h-full min-h-0">
+                <div className="p-4 border-b border-slate-200 bg-white">
+                    <h2 className="text-lg font-semibold text-slate-800">Tin nhắn</h2>
+                    <div className="flex gap-2 mt-3">
+                        <button
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            onClick={() => setFilter('all')}
+                        >
+                            Tất cả
+                        </button>
+                        <button
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full ${filter === 'unread' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            onClick={() => setFilter('unread')}
+                        >
+                            Chưa đọc
+                        </button>
                     </div>
                 </div>
 
-                {/* Right Area - Chat Window */}
-                <div className="chat-main">
-                    {activeChat ? (
-                        <>
-                            <div className="chat-main-header">
-                                <div className="chat-main-header-primary">
-                                    <div className="chat-avatar">
-                                        {activeChat.isAdmin ? <span className="admin-icon">🛡️</span> : activeChat.avatar}
-                                    </div>
-                                    <div className="chat-header-info">
-                                        <div className="chat-main-title-row">
-                                            <h4>{activeChat.name}</h4>
-                                            {isSupportChat && <span className="chat-type-pill header">Kênh dùng chung với admin</span>}
-                                        </div>
-                                        <span className="status">{isSupportChat ? 'Đồng bộ trực tiếp với complaints/chat của admin' : 'Đang hoạt động ổn định'}</span>
-                                    </div>
+                <div className="flex-1 overflow-y-auto min-h-0">
+                    {conversations.map(conv => {
+                        let otherMember = conv.members?.find(m => Number(m.nguoi_dung_id) !== currentUserId)?.user;
+                        
+                        // Fallback logic for self-chat testing cases
+                        if (!otherMember && conv.members?.length > 0) {
+                            // If chatting with self, show "Chính mình" or try to find the other member by record identity
+                            const otherRecord = conv.members.find(m => m.vai_tro_tham_gia === 'creator');
+                            otherMember = otherRecord?.user;
+                        }
+                        return (
+                            <div
+                                key={conv.id}
+                                onClick={() => setActiveConversation(conv)}
+                                className={`flex items-center gap-3 p-4 cursor-pointer border-b border-slate-100 transition ${activeConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'hover:bg-slate-50 border-l-4 border-l-transparent'}`}
+                            >
+                                <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-600 font-bold overflow-hidden">
+                                    {otherMember?.anh_dai_dien ? (
+                                        <img src={otherMember.anh_dai_dien} alt="avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        otherMember?.ho_ten?.charAt(0) || '?'
+                                    )}
                                 </div>
-
-                                <div className="chat-header-badges">
-                                    <span className={`chat-header-badge-pill ${isSupportChat ? 'support' : 'customer'}`}>
-                                        {isSupportChat ? 'Luồng admin' : 'Khách hàng'}
-                                    </span>
-                                    {activeChat.time && <span className="chat-header-badge-pill neutral">Cập nhật {activeChat.time}</span>}
-                                    <span className={`chat-header-badge-pill ${activeTypingLabel ? 'live' : 'neutral'}`}>
-                                        {activeTypingLabel ? 'Đang nhập realtime' : 'Socket.IO realtime'}
-                                    </span>
+                                <div className="flex-1 truncate">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="font-semibold text-sm text-slate-800 truncate">
+                                            {otherMember?.cuaHang?.ten_cua_hang || otherMember?.cua_hang?.ten_cua_hang || otherMember?.ho_ten || 'Khách hàng'}
+                                        </h4>
+                                    </div>
+                                    <p className="text-xs text-slate-500 truncate mt-1">{conv.tin_nhan_cuoi || 'Bắt đầu trò chuyện'}</p>
                                 </div>
                             </div>
-
-                            {isSupportChat && (
-                                <div className="support-chat-note">
-                                    Đây là luồng chat hỗ trợ đồng bộ trực tiếp với hệ hội thoại admin. Tin nhắn từ seller và admin sẽ đi chung một thread.
-                                </div>
-                            )}
-
-                            <div className="chat-messages-area">
-                                {currentMessages.map(msg => {
-                                    const isMe = String(msg.nguoi_gui_id) === String(selectedUser?.id);
-                                    const msgTime = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                    const senderLabel = isMe
-                                        ? (selectedUser?.ho_ten || selectedUser?.email || 'Bạn')
-                                        : (msg?.sender?.ho_ten || msg?.sender?.name || activeChat.name);
-                                    const senderRole = isMe
-                                        ? 'Shop'
-                                        : (isSupportChat ? 'Admin CSKH' : 'Khách hàng');
-
-                                    return (
-                                        <div key={msg.id} className={`message-wrapper ${isMe ? 'message-right' : 'message-left'}`}>
-                                            {!isMe && (
-                                                <div className="msg-avatar">
-                                                    {activeChat.isAdmin ? '🛡️' : activeChat.avatar}
-                                                </div>
-                                            )}
-                                            <div className="message-content">
-                                                <div className={`message-meta ${isMe ? 'message-meta-right' : ''}`}>
-                                                    <span className="message-sender-name">{senderLabel}</span>
-                                                    <span className={`message-role-pill ${isMe ? 'message-role-pill-shop' : isSupportChat ? 'message-role-pill-admin' : 'message-role-pill-customer'}`}>
-                                                        {senderRole}
-                                                    </span>
-                                                    <span className="message-time-inline">{msgTime}</span>
-                                                </div>
-                                                <div className={`message-bubble ${isMe ? 'my-bubble' : 'their-bubble'} ${!isMe && isSupportChat ? 'admin-bubble' : ''}`}>
-                                                    {msg.noi_dung}
-                                                </div>
-                                                <span className="message-time">{isMe ? 'Đã gửi' : 'Đã nhận'}</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                <div ref={messagesEndRef} />
-                            </div>
-
-                            <form className="chat-input-area" onSubmit={handleSendMessage}>
-                                {activeTypingLabel && (
-                                    <div className="chat-composer-typing">
-                                        <span>{activeTypingLabel}</span>
-                                        <span className="typing-dots" aria-hidden="true">
-                                            <span></span>
-                                            <span></span>
-                                            <span></span>
-                                        </span>
-                                    </div>
-                                )}
-                                <button type="button" className="chat-action-btn">📎</button>
-                                <button type="button" className="chat-action-btn">📷</button>
-                                <input 
-                                    type="text" 
-                                    placeholder="Nhập tin nhắn của bạn..." 
-                                    value={messageInput}
-                                    onChange={handleMessageInputChange}
-                                    onBlur={() => emitChatTyping(false)}
-                                />
-                                <button type="submit" className="chat-send-btn" disabled={!messageInput.trim()}>Gửi</button>
-                            </form>
-                        </>
-                    ) : (
-                        <div className="no-chat-selected">
-                            <div className="no-chat-icon">💬</div>
-                            <p>Chọn một cuộc trò chuyện để bắt đầu</p>
-                        </div>
-                    )}
+                        );
+                    })}
                 </div>
             </div>
+
+            {/* Middle - Chat Area */}
+            <div className="flex-1 flex flex-col bg-slate-50 min-w-0 min-h-0">
+                {activeConversation ? (
+                    <>
+                        <div className="bg-white p-4 border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
+                            <div className="flex items-center gap-3">
+                                {activeConversation.loai_hoi_thoai === 'giao_hang' && (
+                                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-[10px] font-bold rounded">GIAO HÀNG</span>
+                                )}
+                                {activeConversation.loai_hoi_thoai === 'ho_tro' && (
+                                    <span className="px-2 py-1 bg-red-100 text-red-800 text-[10px] font-bold rounded">HỖ TRỢ</span>
+                                )}
+                                <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                                    {(() => {
+                                        const otherMember = activeConversation.members?.find(m => Number(m.nguoi_dung_id) !== currentUserId)?.user;
+                                        const shopName = otherMember?.cuaHang?.ten_cua_hang || otherMember?.cua_hang?.ten_cua_hang;
+                                        if (shopName) return shopName;
+                                        if (otherMember) return otherMember.ho_ten;
+                                        // Self-chat fallback
+                                        const customerMember = activeConversation.members?.find(m => m.vai_tro_tham_gia === 'creator')?.user;
+                                        return customerMember ? `${customerMember.ho_ten} (Buyer)` : 'Khách hàng';
+                                    })()}
+                                    <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`}></div>
+                                </h3>
+                            </div>
+                        </div>
+
+                        {/* Product Context */}
+                        {activeConversation.context_data?.san_pham_id && (
+                            <div className="bg-blue-50 border-b border-blue-100 p-3 flex gap-3 items-center shadow-inner">
+                                <div className="w-14 h-14 bg-white rounded border border-blue-200 overflow-hidden shrink-0 shadow-sm">
+                                    {activeConversation.context_data.san_pham_anh ? (
+                                        <img 
+                                            src={activeConversation.context_data.san_pham_anh} 
+                                            alt="" 
+                                            className="w-full h-full object-cover" 
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                                            <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Khách đang hỏi về sản phẩm</div>
+                                    <div className="text-sm font-semibold text-slate-800 truncate">
+                                        {activeConversation.context_data.san_pham_ten || 'Sản phẩm này'}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 font-medium">ID: #{activeConversation.context_data.san_pham_id}</div>
+                                </div>
+                                <a 
+                                    href={`/product/${activeConversation.context_data.san_pham_id}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1 bg-white border border-blue-200 text-blue-600 rounded-md text-[10px] font-bold hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                >
+                                    XEM CHI TIẾT
+                                </a>
+                            </div>
+                        )}
+
+                        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 min-h-0">
+                             {messages.map(msg => {
+                                const isMe = Number(msg.nguoi_gui_id) === currentUserId;
+                                return (
+                                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[70%] p-3 rounded-2xl text-sm ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white text-slate-800 border border-slate-200 rounded-tl-sm shadow-sm'}`}>
+                                            {msg.noi_dung}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Quick Responses */}
+                        <div className="bg-slate-100 p-2 border-t border-slate-200 flex gap-2 overflow-x-auto no-scrollbar">
+                            {QUICK_RESPONSES.map((qr, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleQuickResponse(qr)}
+                                    className="whitespace-nowrap px-3 py-1.5 bg-white border border-slate-300 rounded-full text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                                >
+                                    {qr}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="bg-white p-4 border-t border-slate-200">
+                            <form onSubmit={handleSendMessage} className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Nhập tin nhắn..."
+                                    className="flex-1 px-4 py-2 bg-slate-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                                <button type="submit" disabled={!newMessage.trim()} className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center disabled:opacity-50">
+                                    <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                </button>
+                            </form>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex-1 flex items-center justify-center text-slate-400 flex-col">
+                        <svg className="w-16 h-16 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                        <p>Chọn một cuộc trò chuyện để bắt đầu</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Right Sidebar - Buyer Context */}
+            {activeConversation && (
+                <div className="w-80 bg-white border-l border-slate-200 hidden xl:block h-full overflow-y-auto">
+                    <div className="p-4 border-b border-slate-200 bg-slate-50">
+                        <h3 className="font-semibold text-sm text-slate-800 uppercase tracking-wide">Thông tin khách hàng</h3>
+                    </div>
+                    <div className="p-4 flex flex-col items-center border-b border-slate-100">
+                        <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center text-xl text-slate-600 font-bold mb-3">
+                            {(() => {
+                                const otherMember = activeConversation.members?.find(m => Number(m.nguoi_dung_id) !== currentUserId)?.user;
+                                return (otherMember?.cuaHang?.ten_cua_hang || otherMember?.cua_hang?.ten_cua_hang || otherMember?.ho_ten || activeConversation.members?.find(m => m.vai_tro_tham_gia === 'creator')?.user?.ho_ten || '?').charAt(0);
+                            })()}
+                        </div>
+                        <h4 className="font-bold text-slate-800 text-center">
+                            {(() => {
+                                const otherMember = activeConversation.members?.find(m => Number(m.nguoi_dung_id) !== currentUserId)?.user;
+                                const shopName = otherMember?.cuaHang?.ten_cua_hang || otherMember?.cua_hang?.ten_cua_hang;
+                                if (shopName) return shopName;
+                                if (otherMember) return otherMember.ho_ten;
+                                const customerMember = activeConversation.members?.find(m => m.vai_tro_tham_gia === 'creator')?.user;
+                                return customerMember ? `${customerMember.ho_ten} (Buyer)` : 'Khách hàng';
+                            })()}
+                        </h4>
+                    </div>
+
+                    <div className="p-4">
+                        <h5 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Lịch sử đơn hàng (Tại Shop)</h5>
+                        <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600 border border-slate-100 text-center">
+                            Tính năng đang được cập nhật...
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
-};
-
-export default SellerChat;
+}
