@@ -39,6 +39,8 @@ class HoSoGiaoHang extends Model
         'ma_shipper',
         'trang_thai_noi_bo',
         'khu_vuc',
+        'district_id',
+        'suc_chua_don_hang',
         'lan_can_thiep_gan_nhat',
         'ly_do_can_thiep_gan_nhat',
         'tong_don_giao',
@@ -70,5 +72,10 @@ class HoSoGiaoHang extends Model
     public function user()
     {
         return $this->belongsTo(NguoiDung::class, 'nguoi_dung_id');
+    }
+
+    public function deliveries()
+    {
+        return $this->hasMany(GiaoHang::class, 'nguoi_giao_hang_id', 'nguoi_dung_id');
     }
 }

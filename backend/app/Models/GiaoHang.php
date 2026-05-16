@@ -39,6 +39,8 @@ class GiaoHang extends Model
         'so_lan_giao_lai',
         'cod_thu_ho',
         'ghi_chu',
+        'anh_xac_nhan',
+        'sub_status',
     ];
 
     protected $casts = [
