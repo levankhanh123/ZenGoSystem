@@ -10,7 +10,7 @@ class DanhMuc extends Model
 {
     protected $table = 'danh_muc';
 
-    protected $fillable = ['ten_danh_muc', 'slug', 'danh_muc_cha_id'];
+    protected $fillable = ['ten_danh_muc', 'slug', 'danh_muc_cha_id', 'hinh_anh', 'thu_tu', 'trang_thai'];
 
     // ================= RELATIONS =================
 
@@ -25,7 +25,12 @@ class DanhMuc extends Model
 
     public function children()
     {
-        return $this->hasMany(DanhMuc::class, 'danh_muc_cha_id');
+        return $this->hasMany(DanhMuc::class, 'danh_muc_cha_id')->orderBy('thu_tu');
+    }
+
+    public function childrenRecursive()
+    {
+        return $this->children()->with('childrenRecursive');
     }
 
     public function sanPhams()
