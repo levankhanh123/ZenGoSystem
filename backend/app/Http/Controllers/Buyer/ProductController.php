@@ -15,6 +15,7 @@ class ProductController extends Controller
     {
         $query = SanPham::with(['danhMuc', 'cuaHang'])
             ->where('trang_thai', 'dang_ban')
+            ->whereHas('cuaHang', fn($q) => $q->whereIn('trang_thai', ['active', 'da_duyet']))
 
             // ⭐ rating
             ->addSelect([
@@ -57,7 +58,7 @@ class ProductController extends Controller
                 'id' => $p->id,
                 'name' => $p->ten_san_pham,
                 'price' => (float)$p->gia,
-                'image' => $p->hinh_dai_dien,
+                'image' => $p->hinh_dai_dien ?: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop',
 
                 'rating' => round($p->rating ?? 0, 1),
                 'sold' => (int)($p->sold ?? 0),
@@ -76,6 +77,8 @@ class ProductController extends Controller
     public function show($slug)
     {
         $product = SanPham::where('slug', $slug)
+            ->where('trang_thai', 'dang_ban')
+            ->whereHas('cuaHang', fn($q) => $q->whereIn('trang_thai', ['active', 'da_duyet']))
             ->with(['danhMuc', 'cuaHang'])
             ->firstOrFail();
 
@@ -86,6 +89,7 @@ class ProductController extends Controller
     {
         $products = SanPham::with(['cuaHang'])
             ->where('trang_thai', 'dang_ban')
+            ->whereHas('cuaHang', fn($q) => $q->whereIn('trang_thai', ['active', 'da_duyet']))
 
             // ⭐ rating
             ->addSelect([
@@ -114,6 +118,7 @@ class ProductController extends Controller
     {
         $products = SanPham::with(['cuaHang'])
             ->where('trang_thai', 'dang_ban')
+            ->whereHas('cuaHang', fn($q) => $q->whereIn('trang_thai', ['active', 'da_duyet']))
 
             ->addSelect([
                 'rating' => DB::table('danh_gia')
@@ -144,7 +149,7 @@ class ProductController extends Controller
                 'id' => $p->id,
                 'name' => $p->ten_san_pham,
                 'price' => (float)$p->gia,
-                'image' => $p->hinh_dai_dien,
+                'image' => $p->hinh_dai_dien ?: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop',
 
                 'rating' => round($p->rating ?? 0, 1),
                 'sold' => (int)($p->sold ?? 0),
@@ -158,6 +163,7 @@ class ProductController extends Controller
     {
         $product = SanPham::where('id', $id)
             ->where('trang_thai', 'dang_ban')
+            ->whereHas('cuaHang', fn($q) => $q->whereIn('trang_thai', ['active', 'da_duyet']))
  
             // ⭐ Rating trung bình
             ->addSelect([
@@ -217,7 +223,7 @@ class ProductController extends Controller
             'so_luong_ton'     => $product->so_luong_ton,
             'so_luong_tam_giu' => $product->so_luong_tam_giu,
             'khoi_luong'       => $product->khoi_luong,
-            'hinh_dai_dien'    => $product->hinh_dai_dien,
+            'hinh_dai_dien'    => $product->hinh_dai_dien ?: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop',
             'trang_thai'       => $product->trang_thai,
  
             // Thống kê

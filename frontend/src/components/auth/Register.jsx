@@ -10,7 +10,7 @@ import AuthLayout from "./AuthLayout.jsx";
 /**
  * Register  —  /register
  * Mapping với bảng nguoi_dung:
- *   ho_ten, email, so_dien_thoai, mat_khau, vai_tro (mặc định "nguoi_mua")
+ *   ho_ten, email, so_dien_thoai, mat_khau, vai_tro (mặc định "user")
  */
 export default function Register() {
   const navigate = useNavigate();
@@ -177,7 +177,7 @@ export default function Register() {
                           flex items-center gap-3">
             <span className="text-xl">🛍️</span>
             <div>
-              <p className="text-sm font-bold text-blue-800">Vai trò: Người mua</p>
+              <p className="text-sm font-bold text-blue-800">Vai trò: Người dùng</p>
               <p className="text-xs text-blue-600 mt-0.5">
                 Bạn có thể mua sắm và đánh giá sản phẩm
               </p>

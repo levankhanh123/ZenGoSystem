@@ -1,9 +1,10 @@
 import { useState as _us2 } from "react";
 import { useNavigate as _useNav } from "react-router-dom";
-import { ChevronDown, ChevronUp, Star as _Star, X as _X, Send } from "lucide-react";
+import { ChevronDown, ChevronUp, Star as _Star, X as _X, Send, CreditCard } from "lucide-react";
 import { useOrders } from "../../hooks/useAccount.js";
 
 const ORDER_STATUS_MAP = {
+  cho_thanh_toan:   { label: "Chờ thanh toán", color: "text-blue-700   bg-blue-50   border-blue-300"    },
   cho_xac_nhan:    { label: "Chờ xác nhận",   color: "text-yellow-700 bg-yellow-50 border-yellow-300"  },
   cho_lay_hang:    { label: "Chờ lấy hàng",   color: "text-blue-700   bg-blue-50   border-blue-300"    },
   dang_xu_ly:      { label: "Đang xử lý",      color: "text-blue-700   bg-blue-50   border-blue-300"    },
@@ -17,6 +18,7 @@ const ORDER_STATUS_MAP = {
 
 const STATUS_FILTERS = [
   { id: "all",             label: "Tất cả"       },
+  { id: "cho_thanh_toan",  label: "Chờ thanh toán"},
   { id: "cho_xac_nhan",    label: "Chờ xác nhận" },
   { id: "dang_xu_ly",      label: "Đang xử lý"   },
   { id: "cho_lay_hang",    label: "Chờ lấy hàng" },
@@ -31,7 +33,7 @@ const _fDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
 
 export default function OrderHistoryTab() {
   const navigate = _useNav();
-  const { orders, meta, loading, page, setPage, cancelOrder } = useOrders();
+  const { orders, meta, loading, page, setPage, cancelOrder, repayOrder } = useOrders();
 
   // lọc ở client — tránh phụ thuộc vào API status param
   const [activeFilter, setActiveFilter] = _us2("all");
@@ -92,6 +94,7 @@ export default function OrderHistoryTab() {
               onToggle={() => setExpanded(expanded === order.id ? null : order.id)}
               onCancel={() => setCancelling(order.id)}
               onReview={() => setReviewing(order.id)}
+              onRepay={() => repayOrder(order.id)}
             />
           ))}
         </div>
@@ -131,13 +134,22 @@ export default function OrderHistoryTab() {
   );
 }
 
-function OrderCard({ order, expanded, onToggle, onCancel, onReview }) {
+function OrderCard({ order, expanded, onToggle, onCancel, onReview, onRepay }) {
   const st = ORDER_STATUS_MAP[order.trang_thai_don_hang] ?? {
     label: order.trang_thai_don_hang,
     color: "text-gray-600 bg-gray-50 border-gray-200",
   };
-  const canCancel = ["cho_xac_nhan", "cho_lay_hang"].includes(order.trang_thai_don_hang);
+  const canCancel = ["cho_xac_nhan", "cho_lay_hang", "cho_thanh_toan"].includes(order.trang_thai_don_hang);
   const canReview = order.trang_thai_don_hang === "giao_thanh_cong";
+  const canRepay  = order.trang_thai_thanh_toan === "cho_thanh_toan" && order.phuong_thuc_thanh_toan === "zalopay" && order.trang_thai_don_hang !== "da_huy";
+
+  let label = st.label;
+  let color = st.color;
+
+  if (order.giao_hang?.sub_status === 'cho_giao_lai') {
+    label = `Giao lại (Lần ${order.giao_hang.so_lan_giao_lai}/3)`;
+    color = "text-yellow-700 bg-yellow-50 border-yellow-300";
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:border-pink-100 transition-colors">
@@ -145,8 +157,8 @@ function OrderCard({ order, expanded, onToggle, onCancel, onReview }) {
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <p className="font-extrabold text-gray-800 text-sm">{order.ma_don_hang}</p>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${st.color}`}>
-              {st.label}
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${color}`}>
+              {label}
             </span>
           </div>
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
@@ -175,6 +187,15 @@ function OrderCard({ order, expanded, onToggle, onCancel, onReview }) {
                   flex items-center gap-1"
               >
                 <_Star size={11} /> Đánh giá
+              </button>
+            )}
+            {canRepay && (
+              <button
+                onClick={onRepay}
+                className="text-xs font-bold text-white bg-blue-500 hover:bg-blue-600
+                  px-3 py-1.5 rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-1"
+              >
+                <CreditCard size={12} /> Thanh toán ngay
               </button>
             )}
             <button

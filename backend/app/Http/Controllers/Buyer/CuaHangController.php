@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\CuaHang;
 use App\Models\SanPham;
 use App\Models\DanhMuc;
+use App\Models\DanhMucShop;
 use Illuminate\Support\Facades\DB;
 
 class CuaHangController extends Controller
@@ -19,7 +20,7 @@ class CuaHangController extends Controller
     // ================================================================
     public function index(Request $request)
     {
-        $query = CuaHang::where('trang_thai', 'hoat_dong')
+        $query = CuaHang::whereIn('trang_thai', ['active', 'da_duyet'])
 
             // Số sản phẩm đang bán
             ->addSelect([
@@ -61,12 +62,12 @@ class CuaHangController extends Controller
     // ================================================================
     // GET /api/shops/{id}
     // Chi tiết 1 shop + danh sách sản phẩm có filter/sort/paginate
-    // Query params: category_id, q, sort (ban_chay|moi_nhat|gia_tang|gia_giam), per_page
+    // Query params: category_id, shop_category_id, q, sort (ban_chay|moi_nhat|gia_tang|gia_giam), per_page
     // ================================================================
     public function show(Request $request, $id)
     {
         $shop = CuaHang::where('id', $id)
-            ->where('trang_thai', 'hoat_dong')
+            ->whereIn('trang_thai', ['active', 'da_duyet'])
 
             ->addSelect([
                 'so_san_pham' => DB::table('san_pham')
@@ -109,13 +110,18 @@ class CuaHangController extends Controller
                     ->where('dh.trang_thai_don_hang', 'da_giao'),
             ]);
 
-        // Filter danh mục
+        // Filter danh mục sàn
         if ($request->category_id) {
             $cat     = DanhMuc::with('children')->find($request->category_id);
             $catIds  = $cat
                 ? array_merge([$cat->id], $cat->children->pluck('id')->toArray())
                 : [$request->category_id];
             $productQuery->whereIn('danh_muc_id', $catIds);
+        }
+
+        // Filter danh mục Shop
+        if ($request->shop_category_id) {
+            $productQuery->where('danh_muc_shop_id', $request->shop_category_id);
         }
 
         // Tìm kiếm
@@ -145,16 +151,42 @@ class CuaHangController extends Controller
             'stock'    => max(0, $p->so_luong_ton - ($p->so_luong_tam_giu ?? 0)),
         ]);
 
-        // Danh mục có sản phẩm trong shop này (để làm filter)
-        $categories = DanhMuc::whereHas('sanPhams', fn($q) =>
-                $q->where('cua_hang_id', $shop->id)->where('trang_thai', 'dang_ban')
-            )
-            ->select('id', 'ten_danh_muc')
+        // ── Danh mục của shop (DanhMucShop) ──
+        $categories = DanhMucShop::where('cua_hang_id', $shop->id)
+            ->select('id', 'ten_danh_muc_shop as ten_danh_muc', 'slug')
             ->get();
+
+        // Nếu shop chưa có danh mục riêng, có thể fallback hoặc để trống tùy thiết kế.
+        // Ở đây ta ưu tiên hiển thị danh mục riêng của shop.
+
+        // ── Vouchers của shop ──
+        $now = now();
+        $vouchers = DB::table('voucher')
+            ->where('cua_hang_id', $shop->id)
+            ->where('trang_thai', 'dang_dien_ra')
+            ->where('thoi_gian_bat_dau', '<=', $now)
+            ->where('thoi_gian_ket_thuc', '>=', $now)
+            ->where('so_luong_con_lai', '>', 0)
+            ->get();
+
+        // Kiểm tra voucher đã thu thập chưa nếu đã login
+        $user = auth('sanctum')->user();
+        if ($user) {
+            $collectedVoucherIds = DB::table('nguoi_dung_voucher')
+                ->where('nguoi_dung_id', $user->id)
+                ->pluck('voucher_id')
+                ->toArray();
+
+            $vouchers->transform(function($v) use ($collectedVoucherIds) {
+                $v->is_collected = in_array($v->id, $collectedVoucherIds);
+                return $v;
+            });
+        }
 
         return response()->json([
             'shop'       => $this->formatShop($shop),
             'categories' => $categories,
+            'vouchers'   => $vouchers,
             'products'   => $products,
         ]);
     }
@@ -165,7 +197,7 @@ class CuaHangController extends Controller
     // ================================================================
     public function top()
     {
-        $shops = CuaHang::where('trang_thai', 'hoat_dong')
+        $shops = CuaHang::whereIn('trang_thai', ['active', 'da_duyet'])
 
             ->addSelect([
                 'so_san_pham' => DB::table('san_pham')
@@ -208,6 +240,7 @@ class CuaHangController extends Controller
             'so_san_pham'      => (int) ($s->so_san_pham      ?? 0),
             'tong_don'         => (int) ($s->tong_don         ?? 0),
             'rating_trung_binh'=> (float) ($s->rating_trung_binh ?? 0),
+            'created_at'       => $s->created_at,
         ];
     }
 }

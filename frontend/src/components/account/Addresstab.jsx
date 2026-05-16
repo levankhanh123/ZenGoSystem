@@ -1,9 +1,17 @@
 // components/account/AddressTab.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, MapPin, Pencil, Trash2, CheckCircle, Star, X, Save, Loader2 } from "lucide-react";
-import { useAddresses } from "../../hooks/useAccount.js";
+import { useAddresses, useGhn } from "../../hooks/useAccount.js";
 
-const EMPTY_FORM = { ten_nguoi_nhan: "", so_dien_thoai: "", dia_chi_chi_tiet: "", la_mac_dinh: 0 };
+const EMPTY_FORM = { 
+  ten_nguoi_nhan: "", 
+  so_dien_thoai: "", 
+  dia_chi_chi_tiet: "", 
+  province_id: "",
+  district_id: "",
+  ward_code: "",
+  la_mac_dinh: 0 
+};
 const iCls = `w-full px-4 py-2.5 rounded-xl border-2 border-gray-200 text-sm outline-none
   focus:border-[#e8175d] focus:ring-2 focus:ring-pink-100 transition-all`;
 
@@ -132,6 +140,52 @@ export default function AddressTab() {
 
 function ModalForm({ initial, saving, onSave, onClose, isEdit }) {
   const [form, setForm] = useState({ ...initial });
+  const { fetchProvinces, fetchDistricts, fetchWards } = useGhn();
+  
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [loadingLoc, setLoadingLoc] = useState(false);
+
+// Load provinces on mount
+  useEffect(() => {
+    fetchProvinces().then(setProvinces);
+  }, [fetchProvinces]);
+
+  // Load districts when province_id changes
+  useEffect(() => {
+    if (form.province_id) {
+      setLoadingLoc(true);
+      fetchDistricts(form.province_id).then(d => {
+        setDistricts(d);
+        setLoadingLoc(false);
+      });
+    } else {
+      setDistricts([]);
+    }
+  }, [form.province_id, fetchDistricts]);
+
+  // Load wards when district_id changes
+  useEffect(() => {
+    if (form.district_id) {
+      setLoadingLoc(true);
+      fetchWards(form.district_id).then(w => {
+        setWards(w);
+        setLoadingLoc(false);
+      });
+    } else {
+      setWards([]);
+    }
+  }, [form.district_id, fetchWards]);
+
+  const handleProvinceChange = (e) => {
+    setForm(f => ({ ...f, province_id: e.target.value, district_id: "", ward_code: "" }));
+  };
+
+  const handleDistrictChange = (e) => {
+    setForm(f => ({ ...f, district_id: e.target.value, ward_code: "" }));
+  };
+
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSave(form); }} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -148,11 +202,36 @@ function ModalForm({ initial, saving, onSave, onClose, isEdit }) {
             className={iCls} placeholder="0900 000 000" />
         </div>
       </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Tỉnh / Thành phố *</label>
+          <select required value={form.province_id} onChange={handleProvinceChange} className={iCls}>
+            <option value="">-- Chọn --</option>
+            {provinces.map(p => <option key={p.ProvinceID} value={p.ProvinceID}>{p.ProvinceName}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Quận / Huyện *</label>
+          <select required value={form.district_id} onChange={handleDistrictChange} disabled={!form.province_id} className={iCls}>
+            <option value="">-- Chọn --</option>
+            {districts.map(d => <option key={d.DistrictID} value={d.DistrictID}>{d.DistrictName}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Phường / Xã *</label>
+          <select required value={form.ward_code} onChange={(e) => setForm(f => ({ ...f, ward_code: e.target.value }))} disabled={!form.district_id} className={iCls}>
+            <option value="">-- Chọn --</option>
+            {wards.map(w => <option key={w.WardCode} value={w.WardCode}>{w.WardName}</option>)}
+          </select>
+        </div>
+      </div>
+
       <div>
         <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Địa chỉ chi tiết *</label>
-        <textarea required rows={3} value={form.dia_chi_chi_tiet}
+        <textarea required rows={2} value={form.dia_chi_chi_tiet}
           onChange={(e) => setForm((f) => ({ ...f, dia_chi_chi_tiet: e.target.value }))}
-          className={`${iCls} resize-none`} placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố" />
+          className={`${iCls} resize-none`} placeholder="Số nhà, tên đường..." />
       </div>
       <label className="flex items-center gap-3 cursor-pointer group">
         <div onClick={() => setForm((f) => ({ ...f, la_mac_dinh: f.la_mac_dinh ? 0 : 1 }))}

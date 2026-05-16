@@ -14,8 +14,27 @@ const fVND = (n) =>
 export default function CartPage() {
   const navigate = useNavigate();
   const { items, loading, totalItems, totalPrice, updateQuantity, removeItem, clearCart, reloadCart } = useCart();
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showClearModal, setShowClearModal] = useState(false);
   const [removingId,     setRemovingId]     = useState(null);
+
+  const toggleSelection = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.length === items.length && items.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(items.map(item => item.id));
+    }
+  };
+
+  const selectedItemsList = items.filter(item => selectedIds.includes(item.id));
+  const selectedCount = selectedItemsList.reduce((sum, item) => sum + item.so_luong, 0);
+  const selectedTotal = selectedItemsList.reduce((sum, item) => sum + (item.don_gia * item.so_luong), 0);
 
   const isLoggedIn = !!localStorage.getItem("token");
 
@@ -81,6 +100,28 @@ export default function CartPage() {
 
             {/* ── LEFT: Item groups ── */}
             <div className="lg:col-span-2 flex flex-col gap-4">
+              
+              {/* Selection Bar */}
+              <div className="bg-white rounded-2xl shadow-sm border border-pink-50 px-5 py-4 flex items-center gap-4">
+                <div 
+                  onClick={toggleAll}
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all
+                    ${selectedIds.length === items.length && items.length > 0 
+                      ? 'bg-[#e8175d] border-[#e8175d]' 
+                      : 'border-pink-200 bg-white hover:border-[#e8175d]'}`}
+                >
+                  {selectedIds.length === items.length && items.length > 0 && <ShoppingCart size={12} className="text-white" />}
+                </div>
+                <span className="text-sm font-bold text-gray-700">
+                  Chọn tất cả ({items.length})
+                </span>
+                {selectedIds.length > 0 && (
+                  <span className="text-xs font-semibold text-[#e8175d] ml-auto">
+                    Đã chọn {selectedIds.length} món
+                  </span>
+                )}
+              </div>
+
               {Object.entries(grouped).map(([shopId, group]) => (
                 <div key={shopId} className="bg-white rounded-2xl shadow-sm border border-pink-50 overflow-hidden">
 
@@ -97,6 +138,8 @@ export default function CartPage() {
                       <CartItemRow
                         key={item.id}
                         item={item}
+                        selected={selectedIds.includes(item.id)}
+                        onToggle={() => toggleSelection(item.id)}
                         removing={removingId === item.id}
                         onUpdate={(qty) => updateQuantity(item.id, qty)}
                         onRemove={() => handleRemove(item.id)}
@@ -118,44 +161,52 @@ export default function CartPage() {
                   Tóm tắt đơn hàng
                 </h3>
 
-                <div className="space-y-3 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Tạm tính ({totalItems} sp)</span>
-                    <span className="font-semibold text-gray-700">{fVND(totalPrice)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Phí vận chuyển</span>
-                    <span className="text-gray-400 italic text-xs">Tính khi thanh toán</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Giảm giá voucher</span>
-                    <span className="text-gray-400 italic text-xs">Nhập mã ở bước sau</span>
-                  </div>
-                </div>
+                {selectedIds.length > 0 ? (
+                  <>
+                    <div className="space-y-3 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Tổng cộng ({selectedCount} sản phẩm)</span>
+                        <span className="font-semibold text-gray-700">{fVND(selectedTotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Phí vận chuyển</span>
+                        <span className="text-gray-400 italic text-xs">Tính khi thanh toán</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Giảm giá voucher</span>
+                        <span className="text-gray-400 italic text-xs">Nhập mã ở bước sau</span>
+                      </div>
+                    </div>
 
-                {/* Voucher hint */}
-                <div className="flex items-center gap-2 bg-pink-50 rounded-xl px-3 py-2.5 mb-4 border border-pink-100">
-                  <Tag size={13} className="text-[#e8175d] shrink-0" />
-                  <span className="text-xs text-[#e8175d] font-semibold">Bạn có thể dùng voucher ở trang thanh toán</span>
-                </div>
+                    {/* Voucher hint */}
+                    <div className="flex items-center gap-2 bg-pink-50 rounded-xl px-3 py-2.5 mb-4 border border-pink-100">
+                      <Tag size={13} className="text-[#e8175d] shrink-0" />
+                      <span className="text-xs text-[#e8175d] font-semibold">Bạn có thể dùng voucher ở trang thanh toán</span>
+                    </div>
 
-                <div className="border-t-2 border-dashed border-pink-100 pt-4 mb-5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-gray-800 text-base">Tổng tiền</span>
-                    <span className="font-black text-[#e8175d] text-2xl">{fVND(totalPrice)}</span>
+                    <div className="border-t-2 border-dashed border-pink-100 pt-4 mb-5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-gray-800 text-base">Tổng tiền</span>
+                        <span className="font-black text-[#e8175d] text-2xl">{fVND(selectedTotal)}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => navigate("/checkout", { state: { selectedItems: selectedItemsList } })}
+                      className="w-full bg-[#e8175d] hover:bg-[#c0114d] text-white font-extrabold
+                        py-4 rounded-2xl shadow-lg shadow-pink-200 hover:shadow-xl
+                        flex items-center justify-center gap-2 text-sm
+                        active:scale-[0.98] transition-all duration-150"
+                    >
+                      Tiến hành thanh toán
+                      <ChevronRight size={17} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-gray-400 italic">Vui lòng chọn sản phẩm để xem tóm tắt đơn hàng</p>
                   </div>
-                </div>
-
-                <button
-                  onClick={() => navigate("/checkout")}
-                  className="w-full bg-[#e8175d] hover:bg-[#c0114d] text-white font-extrabold
-                    py-4 rounded-2xl shadow-lg shadow-pink-200 hover:shadow-xl
-                    flex items-center justify-center gap-2 text-sm
-                    active:scale-[0.98] transition-all duration-150"
-                >
-                  Tiến hành thanh toán
-                  <ChevronRight size={17} />
-                </button>
+                )}
 
                 <button
                   onClick={() => navigate("/product")}
@@ -195,9 +246,20 @@ export default function CartPage() {
 }
 
 /* ── CartItemRow ─────────────────────────────────────────────── */
-function CartItemRow({ item, removing, onUpdate, onRemove, onNavigate }) {
+function CartItemRow({ item, selected, onToggle, removing, onUpdate, onRemove, onNavigate }) {
   return (
-    <div className={`flex gap-4 px-5 py-4 transition-all duration-200 ${removing ? "opacity-40 pointer-events-none" : ""}`}>
+    <div className={`flex items-center gap-4 px-5 py-4 transition-all duration-200 ${removing ? "opacity-40 pointer-events-none" : ""}`}>
+      
+      {/* Checkbox */}
+      <div 
+        onClick={onToggle}
+        className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all shrink-0
+          ${selected 
+            ? 'bg-[#e8175d] border-[#e8175d]' 
+            : 'border-pink-200 bg-white hover:border-[#e8175d]'}`}
+      >
+        {selected && <ShoppingCart size={12} className="text-white" />}
+      </div>
 
       {/* Image */}
       <div onClick={onNavigate}

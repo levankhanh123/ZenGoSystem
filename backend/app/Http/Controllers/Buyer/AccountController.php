@@ -14,12 +14,20 @@ use App\Models\ThongBao;
 use App\Models\DonHang;
 use App\Models\NhatKyTaiChinh;
 use Illuminate\Support\Facades\DB;
+use App\Services\ZaloPayService;
 // use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Cloudinary\Cloudinary;
 
 
 class AccountController extends Controller
 {
+    protected $zalopayService;
+
+    public function __construct(ZaloPayService $zalopayService)
+    {
+        $this->zalopayService = $zalopayService;
+    }
+
     // ================================================================
     // Tất cả routes đều yêu cầu auth:sanctum
     // Thêm vào routes/api.php:
@@ -169,6 +177,9 @@ public function updateAvatar(Request $request)
             'ten_nguoi_nhan'   => 'required|string|max:100',
             'so_dien_thoai'    => 'required|string|max:20',
             'dia_chi_chi_tiet' => 'required|string',
+            'province_id'      => 'required|integer',
+            'district_id'      => 'required|integer',
+            'ward_code'        => 'required|string|max:50',
             'la_mac_dinh'      => 'boolean',
         ]);
 
@@ -187,6 +198,9 @@ public function updateAvatar(Request $request)
             'ten_nguoi_nhan'   => $request->ten_nguoi_nhan,
             'so_dien_thoai'    => $request->so_dien_thoai,
             'dia_chi_chi_tiet' => $request->dia_chi_chi_tiet,
+            'province_id'      => $request->province_id,
+            'district_id'      => $request->district_id,
+            'ward_code'        => $request->ward_code,
             'la_mac_dinh'      => $request->boolean('la_mac_dinh') || $count === 0 ? 1 : 0,
         ]);
 
@@ -204,6 +218,9 @@ public function updateAvatar(Request $request)
             'ten_nguoi_nhan'   => 'required|string|max:100',
             'so_dien_thoai'    => 'required|string|max:20',
             'dia_chi_chi_tiet' => 'required|string',
+            'province_id'      => 'required|integer',
+            'district_id'      => 'required|integer',
+            'ward_code'        => 'required|string|max:50',
             'la_mac_dinh'      => 'boolean',
         ]);
 
@@ -213,7 +230,7 @@ public function updateAvatar(Request $request)
                 ->update(['la_mac_dinh' => 0]);
         }
 
-        $addr->update($request->only('ten_nguoi_nhan', 'so_dien_thoai', 'dia_chi_chi_tiet', 'la_mac_dinh'));
+        $addr->update($request->only('ten_nguoi_nhan', 'so_dien_thoai', 'dia_chi_chi_tiet', 'province_id', 'district_id', 'ward_code', 'la_mac_dinh'));
 
         return response()->json(['message' => 'Cập nhật địa chỉ thành công', 'address' => $addr]);
     }
@@ -320,6 +337,138 @@ public function updateAvatar(Request $request)
         return response()->json($orders);
     }
 
+    /** POST /api/account/orders */
+    public function placeOrder(Request $request)
+    {
+        $request->validate([
+            'dia_chi_id'             => 'required|exists:dia_chi_nguoi_dung,id',
+            'phuong_thuc_thanh_toan' => 'required|string',
+            'items'                  => 'required|array|min:1',
+            'items.*.cart_item_id'   => 'required',
+            'items.*.so_luong'       => 'required|integer|min:1',
+        ]);
+
+        $user = $this->user();
+        $addr = DiaChiNguoiDung::where('id', $request->dia_chi_id)
+            ->where('nguoi_dung_id', $user->id)
+            ->firstOrFail();
+
+        // Lấy thông tin các sản phẩm thực tế
+        $cartItemIds = collect($request->items)->pluck('cart_item_id');
+        $cartItems = \App\Models\ChiTietGioHang::whereIn('id', $cartItemIds)
+            ->with('sanPham.cuaHang')
+            ->get();
+
+        if ($cartItems->count() === 0) {
+            return response()->json(['message' => 'Giỏ hàng trống hoặc không hợp lệ.'], 422);
+        }
+
+        // Nhóm items theo shop để tạo nhiều đơn hàng nếu cần
+        $groupedItems = $cartItems->groupBy(fn($item) => $item->sanPham->cua_hang_id);
+
+        $createdOrders = [];
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($groupedItems as $cuaHangId => $items) {
+                $shop = $items->first()->sanPham->cuaHang;
+                $maDonHang = 'ZG' . strtoupper(uniqid());
+                
+                $tamTinh = $items->sum(fn($i) => $i->don_gia * $i->so_luong);
+                $phiShip = 30000; // Mặc định hoặc tính toán thêm
+                $tongTien = $tamTinh + $phiShip;
+
+                $order = DonHang::create([
+                    'ma_don_hang'              => $maDonHang,
+                    'nguoi_mua_id'             => $user->id,
+                    'cua_hang_id'              => $cuaHangId,
+                    'ten_nguoi_nhan'           => $addr->ten_nguoi_nhan,
+                    'so_dien_thoai_nguoi_nhan' => $addr->so_dien_thoai,
+                    'dia_chi_nhan'             => $addr->dia_chi_chi_tiet,
+                    'province_id'              => $addr->province_id,
+                    'district_id'              => $addr->district_id,
+                    'ward_code'                => $addr->ward_code,
+                    'tam_tinh'                 => $tamTinh,
+                    'phi_giao_hang'            => $phiShip,
+                    'giam_gia'                 => 0, // Backend xử lý voucher sau nếu cần
+                    'tong_tien'                => $tongTien,
+                    'phuong_thuc_thanh_toan'   => $request->phuong_thuc_thanh_toan,
+                    'trang_thai_thanh_toan'    => 'cho_thanh_toan',
+                    'trang_thai_don_hang'      => 'cho_xac_nhan',
+                ]);
+
+                // Thông báo cho người bán
+                $notification = ThongBao::create([
+                    'nguoi_dung_id'  => $shop->nguoi_ban_id,
+                    'tieu_de'        => 'Đơn hàng mới',
+                    'noi_dung'       => "Bạn có đơn hàng mới {$maDonHang} từ khách hàng {$user->ho_ten}.",
+                    'loai_thong_bao' => 'order',
+                    'da_doc'         => 0,
+                    'created_at'     => now(),
+                ]);
+
+                // Emit realtime socket
+                try {
+                    app(\App\Services\SocketRelayService::class)->emit('notification.created', [
+                        'notification' => $notification->toArray(),
+                    ], ["user.{$shop->nguoi_ban_id}"]);
+                } catch (\Exception $e) {
+                    // ignore socket error
+                }
+
+                foreach ($items as $item) {
+                    $sp = $item->sanPham;
+                    
+                    // Tạo chi tiết
+                    \App\Models\ChiTietDonHang::create([
+                        'don_hang_id'  => $order->id,
+                        'san_pham_id'  => $sp->id,
+                        'ten_san_pham' => $sp->ten_san_pham,
+                        'don_gia'      => $item->don_gia,
+                        'so_luong'     => $item->so_luong,
+                        'thanh_tien'   => $item->don_gia * $item->so_luong,
+                        'created_at'   => now(),
+                    ]);
+
+                    // Cập nhật tồn kho (Tạm giữ)
+                    $sp->increment('so_luong_tam_giu', $item->so_luong);
+                }
+
+                $createdOrders[] = $this->formatOrder($order->load('chiTietDonHangs', 'cuaHang'));
+            }
+
+            // Xóa items khỏi giỏ hàng
+            \App\Models\ChiTietGioHang::whereIn('id', $cartItemIds)->delete();
+
+            // Nếu thanh toán bằng ZaloPay
+            if ($request->phuong_thuc_thanh_toan === 'zalopay') {
+                $firstOrder = DonHang::find($createdOrders[0]['id']);
+                $zpResult = $this->zalopayService->createOrder($firstOrder, $firstOrder->chiTietDonHangs);
+                
+                if ($zpResult['return_code'] === 1) {
+                    DB::commit();
+                    return response()->json([
+                        'order' => $createdOrders[0],
+                        'payment_url' => $zpResult['order_url']
+                    ], 201);
+                } else {
+                    // Nếu lỗi ZaloPay, rollback để user có thể thử lại/chỉnh sửa
+                    throw new \Exception('Lỗi khởi tạo thanh toán ZaloPay: ' . $zpResult['return_message']);
+                }
+            }
+
+            DB::commit();
+
+            // Trả về đơn hàng đầu tiên (hoặc cả list tùy frontend)
+            return response()->json($createdOrders[0], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+        }
+    }
+
     /** PATCH /api/account/orders/{id}/cancel */
     public function cancelOrder(Request $request, $id)
     {
@@ -343,6 +492,17 @@ public function updateAvatar(Request $request)
             foreach ($order->chiTietDonHangs as $item) {
                 \App\Models\SanPham::where('id', $item->san_pham_id)
                     ->decrement('so_luong_tam_giu', $item->so_luong);
+            }
+
+            // 2. Hoàn tiền nếu đã thanh toán
+            if ($order->trang_thai_thanh_toan === 'da_thanh_toan') {
+                \App\Models\NhatKyTaiChinh::create([
+                    'loai' => 'hoan_tien',
+                    'doi_tuong' => "nguoi_dung:{$order->nguoi_mua_id}",
+                    'noi_dung' => "Hoàn tiền do người mua hủy đơn hàng {$order->ma_don_hang}",
+                    'so_tien' => $order->tong_tien,
+                    'created_at' => now(),
+                ]);
             }
 
             // Ghi lịch sử
@@ -406,13 +566,48 @@ public function updateAvatar(Request $request)
     }
 
 
+    public function repayOrder($id)
+    {
+        $user = $this->user();
+        $order = DonHang::where('id', $id)
+            ->where('nguoi_mua_id', $user->id)
+            ->where('trang_thai_thanh_toan', 'cho_thanh_toan')
+            ->where('phuong_thuc_thanh_toan', 'zalopay')
+            ->firstOrFail();
+
+        $zpResult = $this->zalopayService->createOrder($order, $order->chiTietDonHangs);
+
+        if ($zpResult['return_code'] === 1) {
+            return response()->json([
+                'payment_url' => $zpResult['order_url']
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'Lỗi khởi tạo thanh toán ZaloPay: ' . $zpResult['return_message']
+            ], 400);
+        }
+    }
+
+    public function getOrderStatus($id)
+    {
+        $user = request()->user();
+        $order = DonHang::where('id', $id)->where('nguoi_mua_id', $user->id)->firstOrFail();
+
+        return response()->json([
+            'id' => $order->id,
+            'ma_don_hang' => $order->ma_don_hang,
+            'trang_thai_thanh_toan' => $order->trang_thai_thanh_toan,
+            'trang_thai_don_hang' => $order->trang_thai_don_hang,
+        ]);
+    }
+
     // ────────────────────────────────────────────────────────────────
     // Private helpers
     // ────────────────────────────────────────────────────────────────
 
     private function formatUser(NguoiDung $u): array
     {
-        return [
+        $data = [
             'id'            => $u->id,
             'ho_ten'        => $u->ho_ten,
             'email'         => $u->email,
@@ -425,6 +620,13 @@ public function updateAvatar(Request $request)
             'last_login_at' => $u->last_login_at,
             'created_at'    => $u->created_at,
         ];
+
+        // Nếu là shipper, đính kèm profile
+        if ($u->vai_tro === 'shipper') {
+            $data['shipper_profile'] = $u->shipperProfile;
+        }
+
+        return $data;
     }
 
     private function formatOrder(DonHang $o): array

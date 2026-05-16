@@ -30,16 +30,24 @@ const LOAI_LABEL = {
   giam_phan_tram: "% Giảm",
   giam_co_dinh:   "Giảm cố định",
   mien_phi_ship:  "Freeship",
+  Shop:           "Shop Voucher",
+  System:         "ZenGo Voucher",
+  phan_tram:      "% Giảm",
+  co_dinh:        "Giảm cố định",
 };
 
 const LOAI_COLOR = {
   giam_phan_tram: { bg: "#fff1f5", text: "#e8175d", border: "#fda4c0" },
   giam_co_dinh:   { bg: "#f0fdf4", text: "#16a34a", border: "#86efac" },
   mien_phi_ship:  { bg: "#eff6ff", text: "#2563eb", border: "#93c5fd" },
+  Shop:           { bg: "#fff7ed", text: "#ea580c", border: "#fdba74" },
+  System:         { bg: "#f5f3ff", text: "#7c3aed", border: "#c4b5fd" },
+  phan_tram:      { bg: "#fff1f5", text: "#e8175d", border: "#fda4c0" },
+  co_dinh:        { bg: "#f0fdf4", text: "#16a34a", border: "#86efac" },
 };
 
 // ── useFetchVouchers hook ─────────────────────────────────────────
-function useFetchVouchers({ loai, q, page }) {
+function useFetchVouchers({ loai, q, page, refresh }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,14 +60,14 @@ function useFetchVouchers({ loai, q, page }) {
     ApiService.getVouchers(params)
       .then((res) => { setData(res); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [loai, q, page]);
+  }, [loai, q, page, refresh]);
 
   return { data, loading };
 }
 
 // ── VoucherCard ───────────────────────────────────────────────────
-function VoucherCard({ voucher, onCopy, copied, onSelect, selectable, isUser }) {
-  const color  = LOAI_COLOR[voucher.loai] ?? LOAI_COLOR.co_dinh;
+function VoucherCard({ voucher, onCopy, copied, onSelect, selectable, isUser, onCollect, collecting }) {
+  const color  = LOAI_COLOR[voucher.loai] || LOAI_COLOR.co_dinh || { bg: "#f9fafb", text: "#6b7280", border: "#e5e7eb" };
   const pct    = Math.round((voucher.so_luong_con_lai / voucher.so_luong_voucher) * 100);
   const urgent = voucher.so_luong_con_lai <= 10;
   const tl     = timeLeft(voucher.thoi_gian_ket_thuc);
@@ -183,7 +191,7 @@ function VoucherCard({ voucher, onCopy, copied, onSelect, selectable, isUser }) 
             </span>
           </div>
 
-          {/* Nút copy / chọn */}
+          {/* Nút copy / chọn / thu thập */}
           {selectable ? (
             <button
               onClick={() => onSelect(voucher)}
@@ -196,11 +204,27 @@ function VoucherCard({ voucher, onCopy, copied, onSelect, selectable, isUser }) 
             >
               Dùng ngay
             </button>
+          ) : isUser ? (
+            <button
+              onClick={() => !expired && !voucher.is_collected && onCollect(voucher.id)}
+              disabled={expired || voucher.is_collected || collecting === voucher.id}
+              style={{
+                padding: "7px 14px", borderRadius: 8, border: "none", 
+                cursor: (expired || voucher.is_collected || collecting === voucher.id) ? "not-allowed" : "pointer",
+                background: voucher.is_collected ? "#e5e7eb" : color.text, 
+                color: voucher.is_collected ? "#6b7280" : "#fff", 
+                fontWeight: 700, fontSize: 12,
+                flexShrink: 0, transition: "all .2s",
+                display: "flex", alignItems: "center", gap: 4
+              }}
+            >
+              {collecting === voucher.id ? "..." : voucher.is_collected ? "Đã lưu" : "Lưu mã"}
+            </button>
           ) : (
             <button
               onClick={() => !expired && onCopy(voucher.ma_voucher)}
               disabled={expired}
-              title={isUser ? "Copy mã" : "Đăng nhập để lấy mã"}
+              title="Đăng nhập để lưu mã"
               style={{
                 width: 38, height: 38, borderRadius: 8,
                 border: `1.5px solid ${copied === voucher.ma_voucher ? "#16a34a" : color.border}`,
@@ -218,8 +242,8 @@ function VoucherCard({ voucher, onCopy, copied, onSelect, selectable, isUser }) 
 
         {/* Gợi ý đăng nhập nếu chưa login */}
         {!isUser && !selectable && (
-          <p style={{ fontSize: 11, color: "#9ca3af", margin: 0, textAlign: "right" }}>
-            Đăng nhập để copy mã
+          <p style={{ fontSize: 11, color: "#9ca3af", margin: 0, textAlign: "right", marginTop: 4 }}>
+            Đăng nhập để lưu mã vào ví
           </p>
         )}
       </div>
@@ -240,16 +264,36 @@ export function VoucherGrid({
   const [search, setSearch] = useState("");
   const [page, setPage]     = useState(1);
   const [copied, setCopied] = useState(null);
+  const [refresh, setRefresh] = useState(0);
+  const [collecting, setCollecting] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  const { data, loading } = useFetchVouchers({ loai: "", q: search, page });
+  const { data, loading } = useFetchVouchers({ loai: "", q: search, page, refresh });
 
   const handleCopy = useCallback((code) => {
-    if (!isUser) return;
     navigator.clipboard.writeText(code).then(() => {
       setCopied(code);
       setTimeout(() => setCopied(null), 2000);
     });
-  }, [isUser]);
+  }, []);
+
+  const handleCollect = async (id) => {
+    if (!isUser) return;
+    setCollecting(id);
+    try {
+      await ApiService.collectVoucher(id);
+      setToast({ type: "success", message: "Đã lưu voucher vào ví của bạn!" });
+      setRefresh(prev => prev + 1);
+    } catch (err) {
+      setToast({ 
+        type: "error", 
+        message: err.response?.data?.message || "Có lỗi xảy ra khi thu thập." 
+      });
+    } finally {
+      setCollecting(null);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -274,7 +318,7 @@ export function VoucherGrid({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Tìm mã hoặc tên voucher..."
+              placeholder="Nhập Zengo Voucher"
               style={{
                 flex: 1, border: "none", outline: "none", fontSize: 13,
                 padding: "8px 0", background: "transparent", color: "#374151",
@@ -291,14 +335,8 @@ export function VoucherGrid({
             background: "#e8175d", color: "#fff", border: "none",
             borderRadius: 10, padding: "0 14px", fontSize: 13, fontWeight: 700,
             cursor: "pointer",
-          }}>Tìm</button>
+          }}>Xác nhận</button>
         </form>
-
-        {meta && (
-          <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: "auto" }}>
-            <b style={{ color: "#374151" }}>{meta.total}</b> voucher
-          </span>
-        )}
       </div>
 
       {/* Grid */}
@@ -322,6 +360,8 @@ export function VoucherGrid({
                 onSelect={onSelect}
                 selectable={selectable}
                 isUser={isUser}
+                onCollect={handleCollect}
+                collecting={collecting}
               />
             ))}
           </div>
@@ -333,15 +373,25 @@ export function VoucherGrid({
         </>
       )}
 
-      {/* Toast copy */}
-      {copied && (
+      {/* Toast notifications */}
+      {(copied || toast) && (
         <div style={{
           position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
           background: "#111", color: "#fff", borderRadius: 10, padding: "10px 20px",
           fontSize: 13, fontWeight: 600, zIndex: 9999, display: "flex", alignItems: "center", gap: 8,
           boxShadow: "0 4px 20px rgba(0,0,0,.25)",
         }}>
-          <Check size={15} style={{ color: "#4ade80" }} /> Đã copy: <code style={{ color: "#f9a8d4" }}>{copied}</code>
+          {copied ? (
+            <>
+              <Check size={15} style={{ color: "#4ade80" }} /> 
+              Đã copy: <code style={{ color: "#f9a8d4" }}>{copied}</code>
+            </>
+          ) : (
+            <>
+              {toast.type === "success" ? <Check size={15} style={{ color: "#4ade80" }} /> : <AlertCircle size={15} style={{ color: "#f87171" }} />}
+              {toast.message}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -358,17 +408,19 @@ export function VoucherPicker({ open, onClose, onSelect, orderTotal = 0 }) {
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
         background: "rgba(0,0,0,0.45)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "16px",
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fdf5f0", borderRadius: "20px 20px 0 0",
-          width: "100%", maxWidth: 700,
-          maxHeight: "85vh", overflow: "hidden",
+          background: "#fdf5f0", borderRadius: "24px",
+          width: "100%", maxWidth: 600,
+          maxHeight: "80vh", overflow: "hidden",
           display: "flex", flexDirection: "column",
-          boxShadow: "0 -8px 40px rgba(0,0,0,.15)",
+          boxShadow: "0 20px 50px rgba(0,0,0,.2)",
         }}
       >
         {/* Header */}
@@ -418,15 +470,15 @@ export default function VoucherPage() {
       {/* Hero */}
       <div style={{
         background: "linear-gradient(135deg, #e8175d 0%, #ff6b6b 100%)",
-        padding: "40px 24px 48px",
+        padding: "20px 24px 24px",
       }}>
         <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🎟️</div>
-          <h1 style={{ color: "#fff", fontWeight: 900, fontSize: 28, margin: "0 0 8px" }}>
+          <div style={{ fontSize: 32, marginBottom: 4 }}></div>
+          <h1 style={{ color: "#fff", fontWeight: 900, fontSize: 24, margin: "0 0 4px" }}>
             Kho mã giảm giá
           </h1>
-          <p style={{ color: "#ffd6e4", fontSize: 14, margin: 0 }}>
-            Copy mã và dán vào trang thanh toán để được giảm giá ngay
+          <p style={{ color: "#ffd6e4", fontSize: 13, margin: 0 }}>
+            Thu thập mã giảm giá vào ví và sử dụng khi thanh toán để nhận ưu đãi hấp dẫn
           </p>
         </div>
       </div>

@@ -72,6 +72,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch ('/addresses/{id}/default',[AccountController::class, 'setDefaultAddress']);
         Route::get   ('/wallet',                [AccountController::class, 'getWallet']);
         Route::get   ('/orders',                [AccountController::class, 'getOrders']);
+        Route::post  ('/orders',                [AccountController::class, 'placeOrder']);
+        Route::get   ('/orders/{id}/status',    [AccountController::class, 'getOrderStatus']);
+        Route::post  ('/orders/{id}/repay',     [AccountController::class, 'repayOrder']);
         Route::patch ('/orders/{id}/cancel',    [AccountController::class, 'cancelOrder']);
         Route::get   ('/notifications',         [AccountController::class, 'getNotifications']);
         Route::patch ('/notifications/{id}/read', [AccountController::class, 'markRead']);
@@ -91,6 +94,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}', [DanhGiaController::class, 'update']);
         Route::delete('/{id}', [DanhGiaController::class, 'destroy']);
     });
+
+    Route::post('/vouchers/collect', [VoucherController::class, 'collect']);
 });
 
 Route::get('/reviews/product/{san_pham_id}', [DanhGiaController::class, 'getByProduct']);
