@@ -1,17 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './HandoverOrders.css';
-
-// Mock data representing orders that are "Đang chuẩn bị" and ready to be handed over
-const initialHandoverOrders = [
-  { id: 'ZG20191', customer: 'Lê Văn Khang', carrier: 'Giao Hàng Nhanh', products: 'Đồng hồ nam x1', date: '21/03/2026 08:30' },
-  { id: 'ZG20192', customer: 'Trần Thị Thu', carrier: 'J&T Express', products: 'Giày thể thao x1', date: '21/03/2026 09:15' },
-  { id: 'ZG20193', customer: 'Nguyễn Hữu A', carrier: 'Viettel Post', products: 'Ốp lưng iPhone x3', date: '21/03/2026 10:05' },
-  { id: 'ZG20194', customer: 'Phạm Bình', carrier: 'Giao Hàng Nhanh', products: 'Túi xách nữ x1', date: '21/03/2026 11:20' },
-];
+import api from '../../../api/axios';
+import { useSellerSession } from '../../../contexts/SellerSessionContext';
 
 const HandoverOrders = () => {
-  const [orders, setOrders] = useState(initialHandoverOrders);
+  const { selectedShop } = useSellerSession();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+
+  useEffect(() => {
+    const fetchHandoverOrders = async () => {
+      if (!selectedShop?.id) return;
+      try {
+        setLoading(true);
+        const response = await api.get('/seller/orders', {
+          params: { shop_id: selectedShop.id }
+        });
+        const allOrders = response.data?.data || [];
+        const preparingStatus = ['da_xac_nhan', 'dang_xu_ly', 'cho_lay_hang', 'dang_dong_goi'];
+        const handoverOrders = allOrders.filter(o => preparingStatus.includes(o.status_code));
+        setOrders(handoverOrders);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHandoverOrders();
+  }, [selectedShop?.id]);
+
 
   // Handles checkbox selection
   const handleSelectAll = (e) => {
@@ -41,12 +59,24 @@ const HandoverOrders = () => {
     alert(`Đang in vận đơn cho ${idList.length} đơn hàng:\n${idList.join(', ')}`);
   };
 
-  const confirmHandover = (idList) => {
+  const confirmHandover = async (idList) => {
     if(idList.length === 0) return alert('Vui lòng chọn ít nhất 1 đơn hàng để bàn giao!');
     if(window.confirm(`Xác nhận đã bàn giao ${idList.length} đơn hàng này cho Shipper?`)) {
-      setOrders(orders.filter(o => !idList.includes(o.id)));
-      setSelectedIds([]);
-      alert('Đã cập nhật trạng thái "Đang giao" thành công!');
+      try {
+        await Promise.all(idList.map(id => 
+          api.patch(`/seller/orders/${id}/status`, {
+            shop_id: selectedShop.id,
+            status: 'cho_lay_hang'
+          })
+        ));
+        
+        setOrders(orders.filter(o => !idList.includes(o.id)));
+        setSelectedIds([]);
+        alert('Đã cập nhật trạng thái "Đang giao" thành công!');
+      } catch (err) {
+        console.error(err);
+        alert('Có lỗi xảy ra khi bàn giao. Vui lòng thử lại.');
+      }
     }
   };
 
@@ -110,7 +140,11 @@ const HandoverOrders = () => {
                </tr>
             </thead>
             <tbody>
-               {orders.length > 0 ? orders.map(order => (
+               {loading ? (
+                  <tr>
+                     <td colSpan="7" className="no-data-handover">Đang tải dữ liệu...</td>
+                  </tr>
+               ) : orders.length > 0 ? orders.map(order => (
                   <tr key={order.id} className={selectedIds.includes(order.id) ? 'row-selected' : ''}>
                      <td>
                         <input 
@@ -120,11 +154,11 @@ const HandoverOrders = () => {
                            onChange={(e) => handleSelectOne(e, order.id)}
                         />
                      </td>
-                     <td><span className="order-id">{order.id}</span></td>
+                     <td><span className="order-id">{order.code}</span></td>
                      <td>{order.customer}</td>
                      <td>{order.products}</td>
-                     <td><span className="carrier-badge">{order.carrier}</span></td>
-                     <td>{order.date}</td>
+                     <td><span className="carrier-badge">Giao Hàng Nhanh</span></td>
+                     <td>{order.created_at_label}</td>
                      <td>
                         <div className="action-col">
                           <button className="text-btn" onClick={() => printPackingSlip([order.id])}>In phiếu</button>

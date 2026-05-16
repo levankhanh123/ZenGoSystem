@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Search } from 'lucide-react';
 import './ReviewManagement.css';
 import ReviewStats from './ReviewStats';
 import ReviewList from './ReviewList';
@@ -14,20 +15,21 @@ const ReviewManagement = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedReview, setSelectedReview] = useState(null);
     
-    const shopId = 1; // Temporarily hardcoded
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    const shopId = currentUser?.cua_hang?.id || currentUser?.cua_hang_id || 1;
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
             const [reviewsRes, statsRes] = await Promise.all([
-                api.get(`/reviews/shop/${shopId}`, {
+                api.get(`/seller/reviews/shop/${shopId}`, {
                     params: {
                         state: activeTab,
                         stars: starFilter,
                         search: searchQuery
                     }
                 }),
-                api.get(`/reviews/stats/${shopId}`)
+                api.get(`/seller/reviews/stats/${shopId}`)
             ]);
             setReviews(reviewsRes.data);
             setStats(statsRes.data);
@@ -44,7 +46,7 @@ const ReviewManagement = () => {
 
     const handleReplySubmit = async (reviewId, text) => {
         try {
-            await api.post(`/reviews/${reviewId}/reply`, { noi_dung_phan_hoi: text });
+            await api.post(`/seller/reviews/${reviewId}/reply`, { noi_dung_phan_hoi: text });
             fetchData(); // Refresh list and stats
             alert('Đã gửi phản hồi thành công!');
         } catch (error) {
@@ -94,7 +96,7 @@ const ReviewManagement = () => {
                         </select>
 
                         <div className="search-input-wrapper">
-                            <span className="search-icon">🔍</span>
+                            <Search className="search-icon" size={16} />
                             <input 
                                 type="text" 
                                 placeholder="Tìm theo tên SP, mã đơn..." 

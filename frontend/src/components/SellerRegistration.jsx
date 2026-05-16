@@ -4,11 +4,13 @@ import ShopInformation from './ShopInformation/ShopInformation';
 import ShippingSettings from './ShippingSettings/ShippingSettings';
 import api from '../api/axios';
 import { useSellerSession } from '../contexts/SellerSessionContext';
+import { useAuth } from '../contexts/Authcontext.jsx';
 import './SellerRegistration.css';
 
 const SellerRegistration = () => {
   const navigate = useNavigate();
-  const { selectedUser, reloadSession } = useSellerSession();
+  const { user, refreshUser } = useAuth();
+  const { reloadSession } = useSellerSession();
   const [step, setStep] = useState(1);
   const [shopData, setShopData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,8 +23,8 @@ const SellerRegistration = () => {
   };
 
   const handleShippingComplete = async () => {
-    if (!selectedUser?.id) {
-      const message = 'Chưa có tài khoản seller nào được chọn.';
+    if (!user?.id) {
+      const message = 'Bạn cần đăng nhập để thực hiện chức năng này.';
       setSubmitError(message);
       alert(message);
       return;
@@ -33,7 +35,7 @@ const SellerRegistration = () => {
 
     try {
       const formData = new FormData();
-      formData.append('user_id', selectedUser.id);
+      formData.append('user_id', user.id);
       
       formData.append('shopName', shopData.shopName);
       formData.append('email', shopData.email);
@@ -43,18 +45,33 @@ const SellerRegistration = () => {
         formData.append('shopAvatar', shopData.shopAvatar);
       }
 
-      await api.post('/seller-registration', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
+      await api.post('/seller-registration', formData);
+      await refreshUser();
       await reloadSession();
       setStep(3);
     } catch (error) {
       console.error('Lỗi khi đăng ký shop:', error);
-      setSubmitError(error.response?.data?.error || 'Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại sau.');
-      alert(error.response?.data?.error || 'Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại sau.');
+      
+      let errorMessage = 'Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại sau.';
+      
+      if (error.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.errors) {
+          // Xử lý lỗi validation từ Laravel
+          const validationErrors = error.response.data.errors;
+          errorMessage = Object.values(validationErrors).flat().join(' ');
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+
+        if (error.response.data.details) {
+          errorMessage += ` (Chi tiết: ${error.response.data.details})`;
+        }
+      }
+
+      setSubmitError(errorMessage);
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

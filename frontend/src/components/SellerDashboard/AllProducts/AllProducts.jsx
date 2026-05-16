@@ -2,6 +2,21 @@ import React, { useState, useEffect } from 'react';
 import './AllProducts.css';
 import api from '../../../api/axios';
 import { useSellerSession } from '../../../contexts/SellerSessionContext';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Edit3, 
+  Box, 
+  Eye, 
+  EyeOff, 
+  Plus, 
+  Search, 
+  Filter,
+  X,
+  Save,
+  Loader2
+} from 'lucide-react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 const TABS = ['Tất cả', 'Hoạt động', 'Hết hàng', 'Đã ẩn'];
 
@@ -14,7 +29,17 @@ const getStatusClass = (status) => {
    }
 }
 
-const AllProducts = ({ onAddProduct }) => {
+const STATUS_MAP = {
+  'dang_ban': 'Hoạt động',
+  'het_hang': 'Hết hàng',
+  'da_an': 'Đã ẩn',
+  'Hoạt động': 'dang_ban',
+  'Hết hàng': 'het_hang',
+  'Đã ẩn': 'da_an'
+};
+
+const AllProducts = () => {
+  const navigate = useNavigate();
   const { selectedShop } = useSellerSession();
   const [activeTab, setActiveTab] = useState('Tất cả');
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,28 +48,33 @@ const AllProducts = ({ onAddProduct }) => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
 
-  // Fetch products and categories
+  // Modals state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const fetchData = async () => {
     try {
       setLoading(true);
       const shopId = selectedShop?.id;
-
-      if (!shopId) {
-        setProducts([]);
-        setCategories([]);
-        setLoading(false);
-        return;
-      }
+      if (!shopId) return;
 
       const [productsRes, categoriesRes] = await Promise.all([
-         api.get(`/products?shop_id=${shopId}`),
+         api.get(`/seller/products?shop_id=${shopId}`),
          api.get('/categories')
       ]);
-      setProducts(productsRes.data);
-      setCategories(categoriesRes.data);
+
+      const rawProducts = Array.isArray(productsRes.data) ? productsRes.data : [];
+      const normalizedProducts = rawProducts.map(p => ({
+        ...p,
+        status: STATUS_MAP[p.status] || p.status
+      }));
+
+      setProducts(normalizedProducts);
+      setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
     } catch (error) {
       console.error("Error fetching data:", error);
-      alert("Không thể tải dữ liệu.");
     } finally {
       setLoading(false);
     }
@@ -54,89 +84,97 @@ const AllProducts = ({ onAddProduct }) => {
     fetchData();
   }, [selectedShop?.id]);
 
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = Array.isArray(products) ? products.filter(product => {
     const matchStatus = activeTab === 'Tất cả' || product.status === activeTab;
     const matchCategory = selectedCategory === '' || product.category_id === parseInt(selectedCategory);
     const searchLower = searchTerm.toLowerCase();
-    // support missing sku fallback
     const sku = product.sku || product.id?.toString() || '';
     const matchSearch = sku.toLowerCase().includes(searchLower) || product.name.toLowerCase().includes(searchLower);
     return matchStatus && matchSearch && matchCategory;
-  });
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      try {
-        await api.delete(`/products/${id}`);
-        setProducts(products.filter(p => p.id !== id));
-      } catch (error) {
-        console.error("Error deleting product:", error);
-        alert("Có lỗi xảy ra khi xóa sản phẩm.");
-      }
-    }
-  };
+  }) : [];
 
   const handleToggleHide = async (id) => {
     const product = products.find(p => p.id === id);
     if (!product) return;
     
-    const newStatus = product.status === 'Đã ẩn' ? 'Hoạt động' : 'Đã ẩn';
+    const nextLabel = product.status === 'Đã ẩn' ? 'Hoạt động' : 'Đã ẩn';
+    const nextBackendStatus = STATUS_MAP[nextLabel];
     
     try {
-      await api.patch(`/products/${id}/status`, { status: newStatus });
-      setProducts(products.map(p => {
-        if (p.id === id) {
-          return { ...p, status: newStatus };
-        }
-        return p;
-      }));
+      await api.patch(`/seller/products/${id}/status`, { status: nextBackendStatus });
+      setProducts(products.map(p => p.id === id ? { ...p, status: nextLabel } : p));
     } catch (error) {
         console.error("Error updating status:", error);
         alert("Có lỗi xảy ra khi cập nhật trạng thái.");
     }
   };
 
-  const handleEditStock = async (id) => {
-    const newStock = prompt('Nhập số lượng tồn kho mới:');
-    if (newStock !== null && !isNaN(newStock) && parseInt(newStock) >= 0) {
-      const updatedStock = parseInt(newStock);
-      try {
-        const response = await api.patch(`/products/${id}/stock`, { stock: updatedStock });
-        setProducts(products.map(p => {
-          if (p.id === id) {
-            return {
-              ...p,
-              stock: response.data.stock,
-              status: response.data.status
-            };
-          }
-          return p;
-        }));
-      } catch (error) {
-        console.error("Error updating stock:", error);
-        alert("Có lỗi xảy ra khi cập nhật tồn kho.");
-      }
+  // Modal Handlers
+  const openEditModal = (product) => {
+    setEditingProduct({ ...product });
+    setIsEditModalOpen(true);
+  };
+
+  const openStockModal = (product) => {
+    setEditingProduct({ ...product });
+    setIsStockModalOpen(true);
+  };
+
+  const handleSaveProduct = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const response = await api.patch(`/seller/products/${editingProduct.id}`, {
+        name: editingProduct.name,
+        price: editingProduct.price,
+        category_id: editingProduct.category_id,
+        description: editingProduct.description
+      });
+      
+      const updatedProduct = response.data.product;
+      setProducts(products.map(p => p.id === editingProduct.id ? { 
+        ...p, 
+        name: updatedProduct.ten_san_pham,
+        price: updatedProduct.gia,
+        category_id: updatedProduct.danh_muc_id,
+        description: updatedProduct.mo_ta,
+        status: STATUS_MAP[updatedProduct.trang_thai] || updatedProduct.trang_thai
+      } : p));
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error("Error updating product:", error);
+      alert("Lỗi khi cập nhật sản phẩm.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdateStock = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const response = await api.patch(`/seller/products/${editingProduct.id}/stock`, { stock: editingProduct.stock });
+      setProducts(products.map(p => p.id === editingProduct.id ? { 
+        ...p, 
+        stock: response.data.stock,
+        status: STATUS_MAP[response.data.status] || response.data.status 
+      } : p));
+      setIsStockModalOpen(false);
+    } catch (error) {
+      console.error("Error updating stock:", error);
+      alert("Lỗi khi cập nhật tồn kho.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="all-products-container">
-      {!selectedShop && (
-        <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '12px', background: '#fff4e5', color: '#9a3412' }}>
-          Chưa có cửa hàng được chọn để tải danh sách sản phẩm.
-        </div>
-      )}
-      <div className="products-header-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="products-header-actions">
         <h2>Tất cả sản phẩm</h2>
-        <button className="add-product-btn" onClick={onAddProduct} style={{
-            padding: '8px 16px',
-            backgroundColor: '#ee4d2d',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px'
-        }}>+ Thêm sản phẩm mới</button>
+        <button className="add-product-btn" onClick={() => navigate('/seller-dashboard/add-product')}>
+          <Plus size={18} /> Thêm sản phẩm mới
+        </button>
       </div>
 
       <div className="products-tabs">
@@ -153,6 +191,7 @@ const AllProducts = ({ onAddProduct }) => {
 
       <div className="products-controls">
          <div className="products-search-bar">
+            <Search size={16} className="search-icon" />
             <input 
               type="text" 
               placeholder="Tìm theo tên hoặc mã SP..." 
@@ -160,9 +199,9 @@ const AllProducts = ({ onAddProduct }) => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button className="search-btn">Tìm kiếm</button>
          </div>
          <div className="products-filter">
+             <Filter size={16} className="filter-icon" />
              <select 
                 className="filter-select"
                 value={selectedCategory}
@@ -181,7 +220,7 @@ const AllProducts = ({ onAddProduct }) => {
             <thead>
                <tr>
                   <th>Sản phẩm</th>
-                  <th>Phân loại/Mã</th>
+                  <th>Mã SP</th>
                   <th>Giá bán</th>
                   <th>Tồn kho</th>
                   <th>Trạng thái</th>
@@ -199,17 +238,16 @@ const AllProducts = ({ onAddProduct }) => {
                         <img src={product.image} alt={product.name} className="product-image" />
                         <span className="product-name">{product.name}</span>
                      </td>
-                     <td><span className="product-id">{product.sku || `SP00${product.id}`}</span></td>
-                     <td><span className="product-price">{product.price}</span></td>
-                     <td>{product.stock}</td>
+                     <td><span className="product-id-badge">{product.sku || `SP00${product.id}`}</span></td>
+                     <td><span className="product-price-cell">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}</span></td>
+                     <td><span className={`stock-badge ${product.stock <= 5 ? 'low' : ''}`}>{product.stock}</span></td>
                      <td><span className={`status-badge ${getStatusClass(product.status)}`}>{product.status}</span></td>
                      <td className="product-actions">
-                        <button className="action-btn edit-btn" title="Sửa">✏️</button>
-                        <button className="action-btn stock-btn" title="Chỉnh sửa tồn kho" onClick={() => handleEditStock(product.id)}>📦</button>
-                        <button className="action-btn toggle-btn" title={product.status === 'Đã ẩn' ? 'Hiện' : 'Ẩn'} onClick={() => handleToggleHide(product.id)}>
-                            {product.status === 'Đã ẩn' ? '👁️' : '🚫'}
+                        <button className="action-item edit" onClick={() => openEditModal(product)} title="Sửa thông tin"><Edit3 size={16} /></button>
+                        <button className="action-item stock" onClick={() => openStockModal(product)} title="Cập nhật kho"><Box size={16} /></button>
+                        <button className={`action-item toggle ${product.status === 'Đã ẩn' ? 'hidden' : ''}`} onClick={() => handleToggleHide(product.id)} title={product.status === 'Đã ẩn' ? 'Hiện' : 'Ẩn'}>
+                            {product.status === 'Đã ẩn' ? <Eye size={16} /> : <EyeOff size={16} />}
                         </button>
-                        <button className="action-btn delete-btn" title="Xóa" onClick={() => handleDelete(product.id)}>🗑️</button>
                      </td>
                   </tr>
                )) : (
@@ -220,6 +258,112 @@ const AllProducts = ({ onAddProduct }) => {
             </tbody>
          </table>
       </div>
+
+      {/* Edit Product Modal */}
+      {isEditModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Chỉnh sửa thông tin sản phẩm</h3>
+              <button className="close-btn" onClick={() => setIsEditModalOpen(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSaveProduct}>
+              <div className="form-group">
+                <label>Tên sản phẩm</label>
+                <input 
+                  type="text" 
+                  value={editingProduct.name} 
+                  onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Giá bán (VND)</label>
+                  <input 
+                    type="number" 
+                    value={editingProduct.price} 
+                    onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Danh mục</label>
+                  <select 
+                    value={editingProduct.category_id} 
+                    onChange={(e) => setEditingProduct({...editingProduct, category_id: e.target.value})}
+                    required
+                  >
+                    {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.ten_danh_muc}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Mô tả sản phẩm</label>
+                <div className="editor-container" style={{ height: '200px', marginBottom: '50px' }}>
+                  <ReactQuill 
+                    theme="snow"
+                    value={editingProduct.description || ''} 
+                    onChange={(content) => setEditingProduct({...editingProduct, description: content})}
+                    modules={{
+                      toolbar: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link', 'clean']
+                      ]
+                    }}
+                    style={{ height: '100%' }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-cancel" onClick={() => setIsEditModalOpen(false)}>Hủy</button>
+                <button type="submit" className="btn-save" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Lưu thay đổi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Stock Modal */}
+      {isStockModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content sm">
+            <div className="modal-header">
+              <h3>Cập nhật tồn kho</h3>
+              <button className="close-btn" onClick={() => setIsStockModalOpen(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleUpdateStock}>
+              <div className="product-summary">
+                <img src={editingProduct.image} alt="" />
+                <div className="summary-info">
+                  <p className="name">{editingProduct.name}</p>
+                  <p className="sku">Mã: {editingProduct.sku || `SP00${editingProduct.id}`}</p>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Số lượng tồn kho hiện tại</label>
+                <input 
+                  type="number" 
+                  value={editingProduct.stock} 
+                  onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value})}
+                  min="0"
+                  required
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-cancel" onClick={() => setIsStockModalOpen(false)}>Hủy</button>
+                <button type="submit" className="btn-save" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Cập nhật
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

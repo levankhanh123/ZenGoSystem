@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 
 const ShopInformation = ({ onNext }) => {
-  const [shopName, setShopName] = useState('hieuzk123');
+  const [shopName, setShopName] = useState('');
   const [shopAvatar, setShopAvatar] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const [email, setEmail] = useState('hleunguyendoan8@gmail.com');
-  const [phone, setPhone] = useState('0812234219');
-  const [address, setAddress] = useState('Tổ 6 ấp tân hòa, xã Tân Phú, huyện Tân Châu, Tây Ninh');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   
   const [errors, setErrors] = useState({});
 
