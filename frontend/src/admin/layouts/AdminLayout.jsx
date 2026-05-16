@@ -6,9 +6,14 @@ import {
     findActiveNavigationItem,
 } from "../lib/adminNavigation";
 import { adminStyles } from "../lib/adminStyles";
+import { useAuth } from "../../contexts/Authcontext";
+import { useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 
 export default function AdminLayout() {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { logout } = useAuth();
     const currentModule = findActiveModule(location.pathname);
     const currentSection = findActiveNavigationItem(location.pathname);
     const isModuleLandingPage =
@@ -20,6 +25,11 @@ export default function AdminLayout() {
                 ? "border-[rgba(238,77,45,0.22)] bg-[rgba(255,247,244,0.98)] text-[var(--admin-primary-strong)]"
                 : "border-[rgba(132,86,72,0.08)] bg-white text-slate-700 hover:border-[rgba(132,86,72,0.16)] hover:bg-[rgba(255,249,247,0.92)]"
         }`;
+
+    const handleLogout = () => {
+        logout();
+        navigate("/login");
+    };
 
     return (
         <div className={adminStyles.shell}>
@@ -103,35 +113,23 @@ export default function AdminLayout() {
                                 </div>
                             ))}
                         </nav>
+
+                        <div className="mt-auto pt-4">
+                            <button
+                                onClick={handleLogout}
+                                className="flex w-full items-center gap-3 rounded-[14px] border border-[rgba(132,86,72,0.08)] bg-white px-4 py-3 text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_6px_18px_rgba(16,24,40,0.04)]"
+                            >
+                                <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[12px] bg-red-50 text-red-600 transition group-hover:bg-red-100">
+                                    <LogOut size={18} />
+                                </div>
+                                <span className="text-[0.95rem] font-semibold">Đăng xuất</span>
+                            </button>
+                        </div>
                     </div>
                 </aside>
 
                 <div className={`min-w-0 flex-1 px-4 pb-6 md:px-6 xl:px-8 xl:pb-8 ${adminStyles.mainScroll}`}>
-                    {isModuleLandingPage ? null : (
-                        <header className={`${adminStyles.panel} sticky top-3 z-20 mt-4 rounded-[18px] px-5 py-4 md:px-6 md:py-4 xl:mt-5`}>
-                            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--admin-primary)]">
-                                        Trung tâm vận hành
-                                    </p>
-                                    <h2 className="mt-1 text-[1.7rem] font-extrabold tracking-tight text-slate-900 md:text-[1.85rem]">
-                                        {currentSection.headerLabel || currentSection.label}
-                                    </h2>
-                                </div>
-
-                                <div className="flex flex-wrap gap-3 text-sm">
-                                    <div className="rounded-full border border-[rgba(132,86,72,0.12)] bg-white/80 px-4 py-2 font-medium text-slate-700">
-                                        {currentModule.label}
-                                    </div>
-                                    <div className="rounded-full border border-[rgba(132,86,72,0.12)] bg-white/80 px-4 py-2 font-medium text-slate-700">
-                                        {new Date().toLocaleDateString("vi-VN")}
-                                    </div>
-                                </div>
-                            </div>
-                        </header>
-                    )}
-
-                    <main className={`relative z-10 mx-auto max-w-[1640px] ${isModuleLandingPage ? "mt-0" : "mt-4"}`}>
+                    <main className="relative z-10 mx-auto max-w-[1640px]">
                         <Outlet />
                     </main>
                 </div>

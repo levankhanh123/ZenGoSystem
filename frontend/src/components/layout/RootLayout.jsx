@@ -1,6 +1,8 @@
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/Authcontext.jsx";
 import { useCart } from "../../contexts/CartContext.jsx";
+import { Search, X } from "lucide-react";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const UserIcon = () => (
@@ -88,9 +90,25 @@ function Header() {
   const location   = useLocation();
   const navigate   = useNavigate();
   const { user }   = useAuth();
+  const [searchParams] = useSearchParams();
 
-  const { logout: authLogout }          = useAuth();   // clear user
-  const { totalItems, logout: cartLogout } = useCart(); // clear token + items
+  const { logout: authLogout }          = useAuth();
+  const { totalItems, logout: cartLogout } = useCart();
+
+  const [keyword, setKeyword] = useState(searchParams.get("q") || "");
+
+  useEffect(() => {
+    setKeyword(searchParams.get("q") || "");
+  }, [searchParams]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (keyword.trim()) {
+      navigate(`/product?q=${encodeURIComponent(keyword.trim())}`);
+    } else {
+      navigate("/product");
+    }
+  };
 
   const displayName = user ? user.ho_ten.split(" ").pop() : null;
   const initials    = user
@@ -98,9 +116,9 @@ function Header() {
     : "";
 
   const handleLogout = () => {
-    authLogout();   // ✅ AuthContext: setUser(null)
-    cartLogout();   // ✅ CartContext: xoá token, clear giỏ hàng
+    authLogout();
     navigate("/");
+    cartLogout();
   };
 
   return (
@@ -112,6 +130,22 @@ function Header() {
                       flex justify-end items-center gap-3">
         {user ? (
           <>
+            <button
+              onClick={() => {
+                if (user?.vai_tro === "seller") {
+                  navigate("/seller-dashboard");
+                } else {
+                  navigate("/seller-registration");
+                }
+              }}
+              className="flex items-center gap-1 text-xs text-gray-600 hover:text-[#e91e8c]
+                         transition-colors font-medium mr-2"
+            >
+              Kênh người bán
+            </button>
+
+            <span className="text-gray-300 text-xs mr-2">|</span>
+
             <button
               onClick={() => navigate("/account")}
               className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-[#e91e8c]
@@ -161,47 +195,81 @@ function Header() {
       </div>
 
       {/* ── Main nav ── */}
-      <div className="max-w-5xl mx-auto px-6 py-4 flex items-center">
+      <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-4">
+        <div className="flex items-center justify-between w-full">
+          {/* Logo */}
+          <Link to="/" className="flex-shrink-0">
+            <span
+              className="text-3xl font-black tracking-tight select-none"
+              style={{
+                background: "linear-gradient(135deg, #e91e8c 0%, #ff6b6b 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                fontFamily: "'Georgia', serif",
+                letterSpacing: "-1.5px",
+              }}
+            >
+              zenGo
+            </span>
+          </Link>
 
-        {/* Logo */}
-        <Link to="/" className="flex-shrink-0 mr-12">
-          <span
-            className="text-3xl font-black tracking-tight select-none"
-            style={{
-              background: "linear-gradient(135deg, #e91e8c 0%, #ff6b6b 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              fontFamily: "'Georgia', serif",
-              letterSpacing: "-1.5px",
-            }}
+          {/* Search bar */}
+          <form 
+            onSubmit={handleSearch}
+            className="flex-1 max-w-2xl mx-12 relative group"
           >
-            zenGo
-          </span>
-        </Link>
+            <div className="flex items-center bg-[#fdf6f4] rounded-2xl px-4 py-2.5 border-2 border-transparent 
+                          focus-within:border-[#f9a8d4] focus-within:bg-white transition-all duration-300
+                          shadow-[0_2px_12px_rgba(233,30,140,0.04)]">
+              <Search size={18} className="text-[#f9a8d4] mr-3" />
+              <input
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="Tìm kiếm sản phẩm..."
+                className="flex-1 text-sm bg-transparent outline-none font-semibold text-gray-700 placeholder:text-gray-400"
+              />
+              {keyword && (
+                <button
+                  type="button"
+                  onClick={() => setKeyword("")}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={14} className="text-gray-400" />
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* Cart placeholder to balance logo space or just let it be */}
+          <div className="w-[100px] flex justify-end">
+            <Link to="/cart" className="relative group">
+              <CartIcon count={totalItems} />
+            </Link>
+          </div>
+        </div>
 
         {/* Nav links */}
-        <nav className="flex-1 flex items-center justify-center gap-10">
-          {NAV_LINKS.map((link) => {
+        <nav className="flex items-center justify-center gap-12 border-t border-gray-50 pt-3">
+          {NAV_LINKS.filter(l => !l.isCart).map((link) => {
             const isActive = location.pathname === link.to;
             return (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`relative flex items-center gap-2 text-base font-semibold
-                            tracking-wide transition-colors duration-200 group pb-1
-                            ${isActive ? "text-[#e91e8c]" : "text-gray-600 hover:text-[#e91e8c]"}`}
+                className={`relative flex items-center gap-2 text-sm font-bold
+                            tracking-wide transition-all duration-300 group
+                            ${isActive ? "text-[#e91e8c]" : "text-gray-500 hover:text-[#e91e8c]"}`}
               >
-                {link.isCart ? <CartIcon count={totalItems} /> : null}
                 {link.label}
-
                 <span
-                  className="absolute bottom-0 left-0 h-[2px] rounded-full
+                  className="absolute -bottom-1 left-0 h-[3px] rounded-full
                              bg-gradient-to-r from-[#e91e8c] to-[#ff6b6b]
                              transition-all duration-300"
                   style={{ width: isActive ? "100%" : "0%" }}
                 />
                 {!isActive && (
-                  <span className="absolute bottom-0 left-0 h-[2px] rounded-full
+                  <span className="absolute -bottom-1 left-0 h-[3px] rounded-full
                                    bg-gradient-to-r from-[#e91e8c] to-[#ff6b6b]
                                    w-0 group-hover:w-full transition-all duration-300" />
                 )}
@@ -297,7 +365,25 @@ function Footer() {
 }
 
 // ─── MAIN LAYOUT ──────────────────────────────────────────────────────────────
+import FloatingChatWidget from '../chat/FloatingChatWidget';
+
 export default function MainLayout() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!loading && user) {
+      if (user.vai_tro === "shipper" && !location.pathname.startsWith("/shipper")) {
+        navigate("/shipper");
+      } else if (user.vai_tro === "admin" && !location.pathname.startsWith("/admin")) {
+        navigate("/admin");
+      }
+    }
+  }, [user, loading, location.pathname, navigate]);
+
+  if (loading) return null;
+
   return (
     <div className="min-h-screen flex flex-col bg-[#fdf6f4]">
       <Header />
@@ -305,6 +391,7 @@ export default function MainLayout() {
         <Outlet />
       </main>
       <Footer />
+      {user && (user.vai_tro === 'nguoi_mua' || user.vai_tro === 'user' || user.vai_tro === 'seller') && <FloatingChatWidget user={user} />}
     </div>
   );
 }

@@ -172,14 +172,15 @@ export function useOrders() {
     }
   }, [status, page]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const cancelOrder = async (id, lyDoHuy) => {
     await apiFetch(`${BASE}/orders/${id}/cancel`, {
       method: "PATCH",
       body: JSON.stringify({ ly_do_huy: lyDoHuy }),
     });
-    // Cập nhật local state
     setOrders((prev) =>
       prev.map((o) =>
         o.id === id
@@ -189,11 +190,29 @@ export function useOrders() {
     );
   };
 
+  const placeOrder = async (orderData) => {
+    const data = await apiFetch(`${BASE}/orders`, {
+      method: "POST",
+      body: JSON.stringify(orderData),
+    });
+    return data;
+  };
+
   return {
-    orders, meta, loading,
-    status, setStatus,
-    page, setPage,
+    orders,
+    meta,
+    loading,
+    status,
+    setStatus,
+    page,
+    setPage,
     cancelOrder,
+    placeOrder,
+    repayOrder: async (id) => {
+      const data = await apiFetch(`${BASE}/orders/${id}/repay`, { method: "POST" });
+      if (data.payment_url) window.location.href = data.payment_url;
+      return data;
+    },
     reload: load,
   };
 }
@@ -243,4 +262,34 @@ export function useNotifications() {
     page, setPage,
     markRead, markAllRead,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GHN GEOGRAPHY (PROXY)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useGhn() {
+  const fetchProvinces = useCallback(async () => {
+    const data = await apiFetch(`http://127.0.0.1:8000/api/ghn/provinces`);
+    return data.data || [];
+  }, []);
+
+  const fetchDistricts = useCallback(async (provinceId) => {
+    if (!provinceId) return [];
+    const data = await apiFetch(`http://127.0.0.1:8000/api/ghn/districts`, {
+      method: "POST",
+      body: JSON.stringify({ province_id: parseInt(provinceId) })
+    });
+    return data.data || [];
+  }, []);
+
+  const fetchWards = useCallback(async (districtId) => {
+    if (!districtId) return [];
+    const data = await apiFetch(`http://127.0.0.1:8000/api/ghn/wards`, {
+      method: "POST",
+      body: JSON.stringify({ district_id: parseInt(districtId) })
+    });
+    return data.data || [];
+  }, []);
+
+  return { fetchProvinces, fetchDistricts, fetchWards };
 }

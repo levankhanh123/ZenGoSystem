@@ -72,6 +72,11 @@ export default class ApiService {
     return res.data;
   }
 
+  static async collectVoucher(voucherId) {
+    const res = await axiosInstance.post('/vouchers/collect', { voucher_id: voucherId });
+    return res.data;
+  }
+
   // ================= REVIEWS =================
   static async getReviews(productId) {
     const res = await axiosInstance.get(`/reviews/product/${productId}`);

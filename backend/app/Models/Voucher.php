@@ -50,12 +50,18 @@ class Voucher extends Model
         'so_luong_moi_nguoi',
         'muc_ho_tro_san',
         'ghi_chu',
-        'kieu_giam_gia'
+        'kieu_giam_gia',
+        'doi_tuong_ap_dung',
+        'danh_muc_id',
+        'banner_url',
+        'mo_ta_rich',
+        'han_dang_ky'
     ];
 
     protected $casts = [
         'thoi_gian_bat_dau' => 'datetime',
         'thoi_gian_ket_thuc' => 'datetime',
+        'han_dang_ky' => 'datetime',
         'gia_tri_voucher' => 'decimal:2',
         'gia_tri_don_toi_thieu' => 'decimal:2',
         'giam_toi_da' => 'decimal:2',
@@ -72,6 +78,11 @@ class Voucher extends Model
     public function shop()
     {
         return $this->belongsTo(CuaHang::class, 'cua_hang_id');
+    }
+
+    public function danhMuc()
+    {
+        return $this->belongsTo(DanhMuc::class, 'danh_muc_id');
     }
 
     public function registrations()
@@ -105,5 +116,35 @@ class Voucher extends Model
         return $this->giam_toi_da > 0
             ? min($giam, $this->giam_toi_da)
             : $giam;
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(NguoiDung::class, 'nguoi_dung_voucher', 'voucher_id', 'nguoi_dung_id')
+            ->withPivot(['trang_thai', 'ngay_thu_thap', 'ngay_su_dung'])
+            ->withTimestamps();
+    }
+    // Tự động cập nhật trạng thái dựa trên thời gian
+    public function refreshStatus(): bool
+    {
+        $now = now();
+        $newStatus = $this->trang_thai;
+
+        if ($now->gt($this->thoi_gian_ket_thuc)) {
+            $newStatus = 'Đã kết thúc';
+        } elseif ($this->trang_thai !== 'Tạm dừng') {
+            if ($now->lt($this->thoi_gian_bat_dau)) {
+                $newStatus = 'Sắp diễn ra';
+            } else {
+                $newStatus = 'Đang diễn ra';
+            }
+        }
+
+        if ($this->trang_thai !== $newStatus) {
+            $this->trang_thai = $newStatus;
+            return $this->save();
+        }
+
+        return false;
     }
 }

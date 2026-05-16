@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DonHang;
 use App\Models\LichSuTrangThaiDonHang;
+use App\Models\NhatKyHoatDong;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,19 +39,35 @@ class OrderController extends Controller
             $query->where('loai_xu_ly', $request->input('loai_xu_ly'));
         }
 
-        if ($request->has('bat_thuong')) {
+        if ($request->has('bat_thuong') && $request->input('bat_thuong') !== '') {
             $query->where('bat_thuong', $request->boolean('bat_thuong'));
         }
 
-        return response()->json([
-            'data' => $query->orderBy('created_at', 'desc')->get(),
-        ]);
+        $perPage = $request->input('per_page', 10);
+        $orders = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        return response()->json(array_merge($orders->toArray(), [
+            'stats' => [
+                'total' => DonHang::count(),
+                'abnormal' => DonHang::where('bat_thuong', true)->count(),
+                'need_review' => DonHang::where('trang_thai_xac_nhan', 'can_admin_xac_nhan')->count(),
+                'delivered' => DonHang::where('trang_thai_don_hang', 'da_giao')->count(),
+            ]
+        ]));
     }
 
     public function show(DonHang $donHang): JsonResponse
     {
         return response()->json([
-            'data' => $donHang->load(['buyer', 'shop.owner', 'delivery', 'complaints', 'conversations']),
+            'data' => $donHang->load([
+                'buyer', 
+                'shop.owner', 
+                'delivery', 
+                'complaints', 
+                'conversations', 
+                'chiTietDonHang.sanPham', 
+                'lichSuTrangThai.nguoiCapNhat'
+            ]),
         ]);
     }
 
@@ -83,6 +100,16 @@ class OrderController extends Controller
                 'nguoi_xac_nhan_id' => $data['nguoi_cap_nhat_id'] ?? $donHang->nguoi_xac_nhan_id,
                 'thoi_gian_xac_nhan' => array_key_exists('trang_thai_xac_nhan', $data) ? now() : $donHang->thoi_gian_xac_nhan,
             ]);
+
+            if (isset($data['trang_thai_xac_nhan']) && $data['trang_thai_xac_nhan'] === 'da_xac_nhan') {
+                NhatKyHoatDong::create([
+                    'nguoi_dung_id' => $donHang->nguoi_mua_id,
+                    'hanh_dong' => 'order_verify',
+                    'mo_ta' => "Admin xác minh đơn hàng '{$donHang->ma_don_hang}'. Trạng thái bất thường đã được gỡ bỏ.",
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                ]);
+            }
 
             if (! empty($data['trang_thai_don_hang']) && $data['trang_thai_don_hang'] !== $oldStatus) {
                 LichSuTrangThaiDonHang::create([

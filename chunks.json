@@ -1,0 +1,1 @@
+"[{\"AllowMultiple\":false,\"EndLine\":505,\"ReplacementContent\":\"    const showCampaignForm = view === \\\"add-campaign\\\" || view === \\\"edit-campaign\\\" || Boolean(editingCampaignId);\\n    const showSummaryCards = view === \\\"overview\\\";\\n    const showCampaignList\n<truncated 1450 bytes>"

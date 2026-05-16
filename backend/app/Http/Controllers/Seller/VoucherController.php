@@ -1,3 +1,4 @@
+<?php
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
@@ -16,31 +17,9 @@ class VoucherController extends Controller
                            ->orderBy('created_at', 'desc')
                            ->get();
 
-        $now = Carbon::now();
         foreach ($vouchers as $voucher) {
-            $start = Carbon::parse($voucher->thoi_gian_bat_dau);
-            $end = Carbon::parse($voucher->thoi_gian_ket_thuc);
-            
-            // Logic cập nhật trạng thái
-            $new_trang_thai = $voucher->trang_thai;
-
-            if ($now->gt($end)) {
-                $new_trang_thai = 'Đã kết thúc';
-            } else {
-                // Nếu chưa hết hạn, chỉ cập nhật tự động nếu không phải là 'tam_ngung'
-                if ($voucher->trang_thai !== 'Tạm dừng') {
-                    if ($now->lt($start)) {
-                        $new_trang_thai = 'Sắp diễn ra';
-                    } else {
-                        $new_trang_thai = 'Đang diễn ra';
-                    }
-                }
-            }
-
-            if ($voucher->trang_thai !== $new_trang_thai) {
-                $voucher->trang_thai = $new_trang_thai;
-                $voucher->save();
-            }
+            /** @var \App\Models\Voucher $voucher */
+            $voucher->refreshStatus();
         }
 
         return response()->json($vouchers);
@@ -100,6 +79,12 @@ class VoucherController extends Controller
     public function update(Request $request, $id)
     {
         $voucher = Voucher::findOrFail($id);
+        
+        // Kiểm tra quyền sở hữu
+        if ($voucher->cua_hang_id != $request->cua_hang_id) {
+            return response()->json(['message' => 'Bạn không có quyền sửa voucher này'], 403);
+        }
+
         $status = $voucher->trang_thai;
 
         if ($status === 'Đã kết thúc') {
@@ -147,9 +132,15 @@ class VoucherController extends Controller
     /**
      * Thay đổi trạng thái (Tạm dừng/Khôi phục)
      */
-    public function togglePause($id)
+    public function togglePause(Request $request, $id)
     {
         $voucher = Voucher::findOrFail($id);
+
+        // Kiểm tra quyền sở hữu
+        if ($request->has('shop_id') && $voucher->cua_hang_id != $request->shop_id) {
+            return response()->json(['message' => 'Bạn không có quyền thao tác trên voucher này'], 403);
+        }
+
         if ($voucher->trang_thai === 'Đã kết thúc') {
             return response()->json(['message' => 'Voucher đã kết thúc'], 400);
         }
@@ -170,9 +161,15 @@ class VoucherController extends Controller
     /**
      * Kết thúc sớm
      */
-    public function endEarly($id)
+    public function endEarly(Request $request, $id)
     {
         $voucher = Voucher::findOrFail($id);
+
+        // Kiểm tra quyền sở hữu
+        if ($request->has('shop_id') && $voucher->cua_hang_id != $request->shop_id) {
+            return response()->json(['message' => 'Bạn không có quyền kết thúc voucher này'], 403);
+        }
+
         $voucher->thoi_gian_ket_thuc = Carbon::now();
         $voucher->trang_thai = 'Đã kết thúc';
         $voucher->save();

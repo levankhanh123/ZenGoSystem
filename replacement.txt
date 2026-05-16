@@ -1,0 +1,2 @@
+"        try {\n            // For bulk reject, we'll take the reason from the first selected item that has one\n            const firstWithReason = selectedItems.find(item => registrationDrafts[item.id]?.ly_do_tu_choi?.trim());\n            const commonRe
+<truncated 721 bytes>

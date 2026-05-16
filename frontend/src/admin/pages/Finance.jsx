@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import SavedFilterViews from "../components/SavedFilterViews";
 import { get, put } from "../lib/api";
+import { Search, Filter, MoreVertical, ShieldAlert, ShieldCheck, UserPlus, RefreshCcw, Download, Trash2, Mail, Phone, MapPin, Calendar, Clock, BarChart3, TrendingUp, Users, ChevronRight, X, AlertCircle, CheckCircle2, DollarSign, Wallet, ArrowUpRight, ArrowDownLeft, FileText, Check } from "lucide-react";
 import { adminStyles } from "../lib/adminStyles";
 import { useSavedFilterViews } from "../lib/useSavedFilterViews";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -687,6 +688,33 @@ export default function Finance({ view = null }) {
 
     return (
         <div className={adminStyles.pageStack}>
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Quản lý tài chính</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => loadFinanceData(filters)}
+                            disabled={loading}
+                            className={adminStyles.secondaryButton}
+                        >
+                            <RefreshCcw size={16} className={loading ? "animate-spin mr-2" : "mr-2"} />
+                            Làm mới
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>TÀI CHÍNH</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
             )}

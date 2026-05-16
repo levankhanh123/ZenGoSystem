@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { Search, Filter, MoreVertical, ShieldAlert, ShieldCheck, UserPlus, RefreshCcw, Download, Trash2, Mail, Phone, MapPin, Calendar, Clock, BarChart3, TrendingUp, Users, ChevronRight, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import SavedFilterViews from "../components/SavedFilterViews";
 import { get, put } from "../lib/api";
 import { adminStyles } from "../lib/adminStyles";
@@ -108,10 +109,16 @@ function getRiskReasonLabel(reason) {
 }
 
 export default function Orders() {
+    const mounted = useRef(true);
     const [orderList, setOrderList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
     const [submittingId, setSubmittingId] = useState(null);
+    const [totalOrders, setTotalOrders] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+    const [globalStats, setGlobalStats] = useState({ total: 0, abnormal: 0, need_review: 0, delivered: 0 });
+    const [activeTab, setActiveTab] = useState("info"); // info, history
     const [filters, setFilters] = useUrlFilterState({
         keyword: "",
         loai_xu_ly: "",
@@ -121,40 +128,50 @@ export default function Orders() {
     const [error, setError] = useState(null);
     const savedViews = useSavedFilterViews("admin-orders-views", filters, setFilters);
 
-    useEffect(() => {
-        let mounted = true;
+    const fetchOrders = async () => {
+        setLoading(true);
+        setError(null);
 
-        const fetchOrders = async () => {
-            setLoading(true);
-            setError(null);
+        try {
+            const response = await get("/api/admin/orders", {
+                ...filters,
+                page: currentPage,
+                per_page: perPage,
+            });
 
-            try {
-                const response = await get("/api/admin/orders", {
-                    keyword: filters.keyword,
-                    loai_xu_ly: filters.loai_xu_ly,
-                    bat_thuong: filters.bat_thuong,
-                });
-
-                if (mounted) {
-                    setOrderList(response.data || []);
-                }
-            } catch {
-                if (mounted) {
-                    setError("Không thể tải danh sách đơn hàng.");
-                }
-            } finally {
-                if (mounted) {
-                    setLoading(false);
+            if (mounted.current) {
+                setOrderList(response.data || []);
+                setTotalOrders(response.total || 0);
+                if (response.stats) {
+                    setGlobalStats(response.stats);
                 }
             }
-        };
+        } catch {
+            if (mounted.current) {
+                setError("Không thể tải danh sách đơn hàng.");
+            }
+        } finally {
+            if (mounted.current) {
+                setLoading(false);
+            }
+        }
+    };
 
+    useEffect(() => {
+        mounted.current = true;
         fetchOrders();
-
         return () => {
-            mounted = false;
+            mounted.current = false;
         };
-    }, [filters.bat_thuong, filters.keyword, filters.loai_xu_ly]);
+    }, [filters, currentPage]);
+
+    const handleRefresh = () => {
+        if (currentPage === 1) {
+            fetchOrders();
+        } else {
+            setCurrentPage(1);
+        }
+    };
 
     const summary = useMemo(
         () => ({
@@ -184,6 +201,7 @@ export default function Orders() {
 
     const handleOpenOrder = async (order) => {
         setSelectedOrder(order);
+        setActiveTab("info");
         setDetailLoading(true);
 
         try {
@@ -231,38 +249,56 @@ export default function Orders() {
 
     return (
         <div className={adminStyles.pageStack}>
-            <section className={adminStyles.pageHero}>
-                <div>
-                    <span className={adminStyles.eyebrow}>Đơn hàng</span>
-                    <h3 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight text-slate-900 md:text-[2.25rem] md:leading-[1.1]">
-                        Kiểm soát đơn hàng và case rủi ro.
-                    </h3>
-                </div>
-            </section>
-
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
             )}
 
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Quản lý đơn hàng</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            className={adminStyles.secondaryButton}
+                        >
+                            <RefreshCcw size={16} className={loading ? "animate-spin mr-2" : "mr-2"} />
+                            Làm mới dữ liệu
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>ĐƠN HÀNG</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Đơn hàng</p>
-                    <h4 className="mt-2 text-3xl font-bold text-slate-800">{summary.total}</h4>
+                    <h4 className="mt-2 text-3xl font-bold text-slate-800">{globalStats.total}</h4>
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">all orders</p>
                 </div>
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Đơn bất thường</p>
-                    <h4 className="mt-2 text-3xl font-bold text-red-700">{summary.abnormal}</h4>
+                    <h4 className="mt-2 text-3xl font-bold text-red-700">{globalStats.abnormal}</h4>
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">risk flagged</p>
                 </div>
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Cần admin can thiệp</p>
-                    <h4 className="mt-2 text-3xl font-bold text-yellow-700">{summary.needReview}</h4>
+                    <h4 className="mt-2 text-3xl font-bold text-yellow-700">{globalStats.need_review}</h4>
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">manual review</p>
                 </div>
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Đã giao</p>
-                    <h4 className="mt-2 text-3xl font-bold text-green-700">{summary.delivered}</h4>
+                    <h4 className="mt-2 text-3xl font-bold text-green-700">{globalStats.delivered}</h4>
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">completed</p>
                 </div>
             </div>
@@ -330,7 +366,7 @@ export default function Orders() {
             <div className={`${adminStyles.tableCard} p-5 md:p-6`}>
                 <div className="mb-4 flex items-center justify-between">
                     <h4 className={adminStyles.sectionTitle}>Danh sách đơn hàng toàn sàn</h4>
-                    <span className={adminStyles.chip}>Tổng: {filteredOrders.length}</span>
+                    <span className={adminStyles.chip}>Hiển thị: {orderList.length} / Tổng: {totalOrders}</span>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -351,7 +387,7 @@ export default function Orders() {
                         </thead>
 
                         <tbody>
-                            {filteredOrders.map((order) => (
+                            {orderList.map((order) => (
                                 <tr key={order.id} className="border-t align-top">
                                     <td className="px-4 py-3 font-medium text-slate-800">
                                         <button type="button" onClick={() => handleOpenOrder(order)} className="text-left text-[#ee4d2d] hover:underline">
@@ -403,7 +439,7 @@ export default function Orders() {
                                 </tr>
                             ))}
 
-                            {!loading && filteredOrders.length === 0 && (
+                            {!loading && orderList.length === 0 && (
                                 <tr>
                                     <td colSpan="10" className="px-4 py-8 text-center text-slate-500">Không có dữ liệu đơn hàng</td>
                                 </tr>
@@ -417,63 +453,155 @@ export default function Orders() {
                         </tbody>
                     </table>
                 </div>
+
+                <div className="mt-6 flex items-center justify-between border-t pt-4">
+                    <div className="text-sm text-slate-500">
+                        Trang {currentPage} / {Math.ceil(totalOrders / perPage) || 1}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            disabled={currentPage === 1 || loading}
+                            onClick={() => setCurrentPage((prev) => prev - 1)}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            Trước
+                        </button>
+                        <button
+                            disabled={currentPage * perPage >= totalOrders || loading}
+                            onClick={() => setCurrentPage((prev) => prev + 1)}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            Sau
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {selectedOrder && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,11,8,0.52)] px-4 py-6 backdrop-blur-sm">
-                    <div className={`${adminStyles.modalSurface} w-full max-w-4xl`}>
-                        <div className="sticky top-0 border-b border-[rgba(132,86,72,0.1)] bg-[rgba(255,250,247,0.94)] px-6 py-5 backdrop-blur-sm">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <span className={adminStyles.eyebrow}>Order detail</span>
-                                    <h3 className="mt-3 text-xl font-bold text-slate-800">Đơn hàng {selectedOrder.ma_don_hang}</h3>
-                                    <p className="mt-2 text-sm text-slate-500">
-                                        {detailLoading ? "Đang tải chi tiết đơn hàng..." : "Thông tin chi tiết và tình trạng vận hành."}
-                                    </p>
-                                </div>
-
-                                <button onClick={() => setSelectedOrder(null)} className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">
-                                    Đóng
-                                </button>
+                    <div className={`${adminStyles.modalSurface} w-full max-w-5xl overflow-hidden`}>
+                        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-[rgba(132,86,72,0.1)] bg-[rgba(255,250,247,0.94)] px-6 py-5 backdrop-blur-sm">
+                            <div>
+                                <span className={adminStyles.eyebrow}>Order detail</span>
+                                <h3 className="mt-3 text-xl font-bold text-slate-800">Đơn hàng {selectedOrder.ma_don_hang}</h3>
+                                {detailLoading && <p className="mt-2 text-xs text-slate-400">Đang tải chi tiết đơn hàng...</p>}
                             </div>
+
+                            <button
+                                onClick={() => setSelectedOrder(null)}
+                                className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                            >
+                                Đóng
+                            </button>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-2">
-                            <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
-                                <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Thông tin chung</h4>
-                                <p>Khách hàng: {selectedOrder.buyer?.ho_ten || selectedOrder.ten_nguoi_nhan}</p>
-                                <p>Shop: {selectedOrder.shop?.ten_cua_hang || "--"}</p>
-                                <p>Người nhận: {selectedOrder.ten_nguoi_nhan}</p>
-                                <p>SĐT: {selectedOrder.so_dien_thoai_nguoi_nhan}</p>
-                                <p>Địa chỉ: {selectedOrder.dia_chi_nhan}</p>
-                                <p>Tổng tiền: {Number(selectedOrder.tong_tien || 0).toLocaleString("vi-VN")} đ</p>
-                            </div>
+                        <div className="flex border-b border-[rgba(132,86,72,0.1)] px-6">
+                            <button
+                                onClick={() => setActiveTab("info")}
+                                className={`px-4 py-3 text-sm font-bold transition-colors ${
+                                    activeTab === "info"
+                                        ? "border-b-2 border-[#ee4d2d] text-[#ee4d2d]"
+                                        : "text-slate-500 hover:text-slate-700"
+                                }`}
+                            >
+                                Thông tin & Sản phẩm
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("history")}
+                                className={`px-4 py-3 text-sm font-bold transition-colors ${
+                                    activeTab === "history"
+                                        ? "border-b-2 border-[#ee4d2d] text-[#ee4d2d]"
+                                        : "text-slate-500 hover:text-slate-700"
+                                }`}
+                            >
+                                Lịch sử & Nhật ký
+                            </button>
+                        </div>
 
-                            <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
-                                <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Trạng thái vận hành</h4>
-                                <p>Đơn hàng: {getOrderStatusLabel(selectedOrder.trang_thai_don_hang)}</p>
-                                <p>Thanh toán: {getPaymentStatusLabel(selectedOrder.trang_thai_thanh_toan)}</p>
-                                <p>Kiểm tra: {getVerifyStatusLabel(selectedOrder.trang_thai_xac_nhan)}</p>
-                                <p>Loại xử lý: {getProcessTypeLabel(selectedOrder.loai_xu_ly)}</p>
-                                <p>Giao hàng: {selectedOrder.delivery?.trang_thai || "--"}</p>
-                            </div>
+                        <div className="max-h-[65vh] overflow-y-auto px-6 py-6">
+                            {activeTab === "info" ? (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                        <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
+                                            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Người nhận & Địa chỉ</h4>
+                                            <p>Khách hàng: {selectedOrder.buyer?.ho_ten || selectedOrder.ten_nguoi_nhan}</p>
+                                            <p>Shop: {selectedOrder.shop?.ten_cua_hang || "--"}</p>
+                                            <p>Người nhận: {selectedOrder.ten_nguoi_nhan}</p>
+                                            <p>SĐT: {selectedOrder.so_dien_thoai_nguoi_nhan}</p>
+                                            <p>Địa chỉ: {selectedOrder.dia_chi_nhan}</p>
+                                        </div>
 
-                            <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700 lg:col-span-2`}>
-                                <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Dấu hiệu rủi ro</h4>
-                                {(selectedOrder.ly_do_bat_thuong || []).length > 0 ? (
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedOrder.ly_do_bat_thuong.map((reason) => (
-                                            <span key={reason} className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
-                                                {getRiskReasonLabel(reason)}
-                                            </span>
-                                        ))}
+                                        <div className={`${adminStyles.detailCard} p-4 text-sm text-slate-700`}>
+                                            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Trạng thái hiện tại</h4>
+                                            <p>Đơn hàng: {getOrderStatusLabel(selectedOrder.trang_thai_don_hang)}</p>
+                                            <p>Thanh toán: {getPaymentStatusLabel(selectedOrder.trang_thai_thanh_toan)}</p>
+                                            <p>Kiểm tra: {getVerifyStatusLabel(selectedOrder.trang_thai_xac_nhan)}</p>
+                                            <p>Loại xử lý: {getProcessTypeLabel(selectedOrder.loai_xu_ly)}</p>
+                                            <p>Giao hàng: {selectedOrder.delivery?.trang_thai || "--"}</p>
+                                            <p className="mt-2 font-bold text-[#ee4d2d]">Tổng tiền: {Number(selectedOrder.tong_tien || 0).toLocaleString("vi-VN")} đ</p>
+                                        </div>
                                     </div>
-                                ) : (
-                                    <p>Không có dấu hiệu rủi ro đang mở.</p>
-                                )}
 
-                                {selectedOrder.ly_do_huy && <p className="mt-3">Lý do hủy: {selectedOrder.ly_do_huy}</p>}
-                            </div>
+                                    <div className={`${adminStyles.detailCard} p-4`}>
+                                        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Danh sách sản phẩm</h4>
+                                        <div className="space-y-3">
+                                            {(selectedOrder.chi_tiet_don_hang || []).map((item) => (
+                                                <div key={item.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center text-xs text-slate-400">IMG</div>
+                                                        <div>
+                                                            <p className="font-medium text-slate-800">{item.san_pham?.ten_san_pham || "Sản phẩm không tồn tại"}</p>
+                                                            <p className="text-xs text-slate-500">Số lượng: {item.so_luong} x {Number(item.gia_ban).toLocaleString("vi-VN")} đ</p>
+                                                        </div>
+                                                    </div>
+                                                    <p className="font-bold text-slate-700">{Number(item.thanh_tien).toLocaleString("vi-VN")} đ</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {selectedOrder.bat_thuong && (
+                                        <div className={`${adminStyles.detailCard} border-red-200 bg-red-50 p-4`}>
+                                            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-red-600">Cảnh báo rủi ro</h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {(selectedOrder.ly_do_bat_thuong || []).map((reason) => (
+                                                    <span key={reason} className="rounded-full bg-white px-3 py-1 text-xs font-bold text-red-700 shadow-sm">
+                                                        {getRiskReasonLabel(reason)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            {selectedOrder.ly_do_huy && <p className="mt-3 text-sm text-red-700">Lý do hủy: {selectedOrder.ly_do_huy}</p>}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div>
+                                        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Lịch sử thay đổi trạng thái</h4>
+                                        <div className="space-y-4">
+                                            {(selectedOrder.lich_su_trang_thai || []).map((history, idx) => (
+                                                <div key={history.id} className="relative flex gap-4 pl-6">
+                                                    {idx !== (selectedOrder.lich_su_trang_thai.length - 1) && (
+                                                        <div className="absolute left-[7px] top-6 h-full w-[2px] bg-slate-200" />
+                                                    )}
+                                                    <div className="absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#ee4d2d] shadow-sm" />
+                                                    <div className="flex-1">
+                                                        <p className="text-xs text-slate-500">{new Date(history.created_at).toLocaleString("vi-VN")}</p>
+                                                        <p className="mt-1 font-medium text-slate-800">
+                                                            {getOrderStatusLabel(history.trang_thai_cu)} → {getOrderStatusLabel(history.trang_thai_moi)}
+                                                        </p>
+                                                        {history.ghi_chu && <p className="mt-1 text-sm italic text-slate-600 text-sm">"{history.ghi_chu}"</p>}
+                                                        <p className="mt-1 text-[10px] text-slate-400">Cập nhật bởi: {history.nguoi_cap_nhat?.ho_ten || "Hệ thống"}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(selectedOrder.lich_su_trang_thai || []).length === 0 && (
+                                                <p className="text-sm text-slate-500 italic">Chưa có lịch sử thay đổi.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

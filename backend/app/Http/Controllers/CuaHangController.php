@@ -17,7 +17,7 @@ class CuaHangController extends Controller
     // ================================================================
     public function index(Request $request)
     {
-        $query = CuaHang::where('trang_thai', 'hoat_dong')
+        $query = CuaHang::whereIn('trang_thai', ['active', 'da_duyet'])
 
             // Số sản phẩm đang bán
             ->addSelect([
@@ -64,7 +64,7 @@ class CuaHangController extends Controller
     public function show(Request $request, $id)
     {
         $shop = CuaHang::where('id', $id)
-            ->where('trang_thai', 'hoat_dong')
+            ->whereIn('trang_thai', ['active', 'da_duyet'])
 
             ->addSelect([
                 'so_san_pham' => DB::table('san_pham')
@@ -163,7 +163,7 @@ class CuaHangController extends Controller
     // ================================================================
     public function top()
     {
-        $shops = CuaHang::where('trang_thai', 'hoat_dong')
+        $shops = CuaHang::whereIn('trang_thai', ['active', 'da_duyet'])
 
             ->addSelect([
                 'so_san_pham' => DB::table('san_pham')
@@ -194,7 +194,7 @@ class CuaHangController extends Controller
     }
 
     // ── private helper ──
-    private function formatShop(CuaHang $s): array
+    private function formatShop($s): array
     {
         return [
             'id'               => $s->id,

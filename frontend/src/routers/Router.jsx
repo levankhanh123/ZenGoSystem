@@ -17,10 +17,12 @@ const ShopList = lazy(() => import("../components/shop/ShopList.jsx"));
 const ShopDetail = lazy(() => import("../components/shop/ShopDetail.jsx"));
 const VoucherPage = lazy(() => import("../pages/Voucherpage.jsx"));
 const Cart = lazy(() => import("../pages/Cartpage.jsx"));
+const Checkout = lazy(() => import("../pages/CheckoutPage.jsx"));
 const Account = lazy(() => import("../pages/Accountpage.jsx"));
 const Login = lazy(() => import("../components/auth/Login.jsx"));
 const Register = lazy(() => import("../components/auth/Register.jsx"));
 const ProductDetail = lazy(() => import("../components/product/ProductDetail.jsx"));
+const PaymentResult = lazy(() => import("../pages/PaymentResult.jsx"));
 
 
 
@@ -47,6 +49,8 @@ export const routers = [
       // Các trang khác
       { path: "voucher", component: VoucherPage },
       { path: "cart",    component: Cart    },
+      { path: "checkout", component: Checkout },
+      { path: "payment-result", component: PaymentResult },
       { path: "account", component: Account },
       // { path: "orders",  component: Order   },
     ],

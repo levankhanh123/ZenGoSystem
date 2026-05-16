@@ -56,7 +56,7 @@ export default function SavedFilterViews({
                                 onClick={() => onDelete(view.id)}
                                 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 hover:text-red-600"
                             >
-                                xoa
+                                Xóa
                             </button>
                         </div>
                     ))

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { RefreshCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { get } from "../lib/api";
 import { adminStyles } from "../lib/adminStyles";
@@ -221,6 +222,7 @@ function getToneClasses(tone) {
 }
 
 export default function Dashboard() {
+    const mounted = useRef(true);
     const [dashboard, setDashboard] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -230,36 +232,44 @@ export default function Dashboard() {
         conversationScope: "",
     });
 
-    useEffect(() => {
-        let mounted = true;
-
-        const fetchDashboard = async () => {
+    const fetchDashboard = async (isRefresh = false) => {
+        if (!isRefresh) {
             setLoading(true);
-            setError(null);
+        }
+        setError(null);
 
-            try {
-                const response = await get("/api/admin/dashboard");
+        try {
+            console.log("[Dashboard] Fetching data...");
+            const response = await get("/api/admin/dashboard");
+            console.log("[Dashboard] Response received:", response);
 
-                if (mounted) {
-                    setDashboard(response.data || {});
-                }
-            } catch {
-                if (mounted) {
-                    setError("Không thể tải dữ liệu dashboard.");
-                }
-            } finally {
-                if (mounted) {
-                    setLoading(false);
-                }
+            if (mounted.current) {
+                setDashboard(response.data || {});
             }
-        };
+        } catch (err) {
+            console.error("[Dashboard] Fetch error:", err);
+            if (mounted.current) {
+                setError("Không thể tải dữ liệu dashboard. Vui lòng thử lại.");
+            }
+        } finally {
+            if (mounted.current) {
+                setLoading(false);
+            }
+        }
+    };
 
+    useEffect(() => {
+        mounted.current = true;
         fetchDashboard();
 
         return () => {
-            mounted = false;
+            mounted.current = false;
         };
     }, []);
+
+    const handleRefresh = () => {
+        fetchDashboard(true);
+    };
 
     const priorityOrders = dashboard?.priority_orders || [];
     const activeComplaints = dashboard?.active_complaints || [];
@@ -382,7 +392,7 @@ export default function Dashboard() {
 
     const actionDeck = [
         {
-            label: "Order intervention",
+            label: "Can thiệp đơn hàng",
             value: opsSignals.orders_need_attention || 0,
             note: "Đơn bị gắn cờ hoặc cần admin xác minh ngay trong phiên.",
             to: "/admin/orders?bat_thuong=true",
@@ -390,51 +400,51 @@ export default function Dashboard() {
             tone: "rose",
         },
         {
-            label: "Complaint SLA",
+            label: "Vi phạm SLA khiếu nại",
             value: opsSignals.breached_complaints || 0,
-            note: "Case đã quá 48h hoặc sắp breach cần owner chốt xử lý.",
+            note: "Case đã quá 48h hoặc sắp vi phạm SLA cần chốt xử lý.",
             to: "/admin/complaints?complaintStatus=dang_xu_ly",
-            cta: "Mở desk CSKH",
+            cta: "Mở trung tâm hỗ trợ",
             tone: "orange",
         },
         {
-            label: "Unassigned cases",
+            label: "Khiếu nại chưa gán",
             value: opsSignals.unassigned_complaints || 0,
             note: "Khiếu nại đang mở nhưng chưa được giao admin chịu trách nhiệm.",
             to: "/admin/complaints?complaintAssignee=unassigned",
-            cta: "Gán owner ngay",
+            cta: "Gán người xử lý ngay",
             tone: "amber",
         },
         {
-            label: "Unread hot chats",
+            label: "Chat chưa phản hồi",
             value: opsSignals.stale_unread_conversations || 0,
-            note: "Hội thoại chưa đọc đã tồn trên 6 giờ, dễ ảnh hưởng trải nghiệm buyer.",
+            note: "Hội thoại chưa đọc đã tồn trên 6 giờ, dễ ảnh hưởng trải nghiệm khách hàng.",
             to: "/admin/complaints?conversationUnread=true",
-            cta: "Đi tới chat nóng",
+            cta: "Đi tới chat hỗ trợ",
             tone: "violet",
         },
         {
-            label: "Shop onboarding",
+            label: "Duyệt nhà bán hàng",
             value: opsSignals.pending_shops || 0,
-            note: "Shop mới chờ review để mở bán và bắt đầu tạo doanh thu.",
+            note: "Shop mới chờ duyệt hồ sơ để bắt đầu hoạt động trên sàn.",
             to: "/admin/shops?trang_thai=cho_duyet",
-            cta: "Duyệt shop",
+            cta: "Phê duyệt shop",
             tone: "sky",
         },
         {
-            label: "Unread notifications",
+            label: "Thông báo hệ thống",
             value: opsSignals.unread_notifications || 0,
-            note: "Alert, broadcast và tín hiệu hệ thống còn tồn cần xử lý theo scope.",
+            note: "Cảnh báo, thông báo hàng loạt và tín hiệu hệ thống cần xử lý.",
             to: "/admin/notifications?readState=unread",
-            cta: "Mở signal center",
+            cta: "Mở trung tâm tín hiệu",
             tone: "emerald",
         },
         {
-            label: "Campaign moderation",
+            label: "Kiểm duyệt chiến dịch",
             value: opsSignals.pending_campaign_registrations || 0,
-            note: "Shop đang chờ duyệt vào campaign, ảnh hưởng trực tiếp độ phủ chương trình.",
+            note: "Shop đang chờ duyệt tham gia chiến dịch, ảnh hưởng đến độ phủ chương trình.",
             to: "/admin/campaigns?registrationStatus=cho_duyet&campaignStatus=dang_mo_dang_ky",
-            cta: "Mở marketing ops",
+            cta: "Mở vận hành marketing",
             tone: "orange",
         },
     ];
@@ -463,7 +473,34 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="space-y-6 pb-6">
+        <div className={adminStyles.pageStack}>
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Thông tin hệ thống</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            className={adminStyles.secondaryButton}
+                        >
+                            <RefreshCcw size={16} className={loading ? "animate-spin mr-2" : "mr-2"} />
+                            Làm mới
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>DASHBOARD</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {error}
@@ -471,15 +508,6 @@ export default function Dashboard() {
             )}
 
             <section className={`${adminStyles.panel} rounded-[28px] p-5 md:p-6`}>
-                <div className="mb-5">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#ee4d2d]">
-                            Dashboard snapshot
-                        </p>
-                        <h4 className="mt-2 text-lg font-bold text-slate-900">Chỉ số nhanh</h4>
-                    </div>
-                </div>
-
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {cards.map((card) => (
                         <div

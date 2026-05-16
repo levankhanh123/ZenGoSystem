@@ -39,7 +39,7 @@ class DangKyChienDich extends Model
 
     public function campaign()
     {
-        return $this->belongsTo(ChienDich::class, 'campaign_id');
+        return $this->belongsTo(Voucher::class, 'campaign_id');
     }
 
     public function shop()

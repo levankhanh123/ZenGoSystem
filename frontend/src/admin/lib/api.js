@@ -13,7 +13,10 @@ function buildUrl(path, params = {}) {
 
     const query = searchParams.toString();
 
-    const normalizedPath = path.startsWith("http") ? path : `${apiBaseUrl}${path}`;
+    // Prevent double prefixing if path already starts with apiBaseUrl
+    const normalizedPath = (path.startsWith("http") || (apiBaseUrl && path.startsWith(apiBaseUrl)))
+        ? path
+        : `${apiBaseUrl}${path}`;
 
     return query ? `${normalizedPath}?${query}` : normalizedPath;
 }
@@ -26,14 +29,15 @@ async function request(path, options = {}) {
         headers = {},
     } = options;
 
+    const isFormData = body instanceof FormData;
     const response = await fetch(buildUrl(path, params), {
         method,
         headers: {
             Accept: "application/json",
-            ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+            ...(!isFormData && body !== undefined ? { "Content-Type": "application/json" } : {}),
             ...headers,
         },
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
     });
 
     const text = await response.text();

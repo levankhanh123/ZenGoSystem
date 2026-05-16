@@ -1,4 +1,5 @@
-import React, { useEffect, useEffectEvent, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { Search, Filter, MoreVertical, ShieldAlert, ShieldCheck, UserPlus, RefreshCcw, Download, Trash2, Mail, Phone, MapPin, Calendar, Clock, BarChart3, TrendingUp, Users, ChevronRight, X, Bell, Send, User, Trash, CheckCircle } from "lucide-react";
 import SavedFilterViews from "../components/SavedFilterViews";
 import { del, get, post, put } from "../lib/api";
 import { adminStyles } from "../lib/adminStyles";
@@ -92,17 +93,21 @@ function getReadStateMeta(isRead) {
 }
 
 export default function Notifications() {
+    const mounted = useRef(true);
     const [notifications, setNotifications] = useState([]);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalNotifications, setTotalNotifications] = useState(0);
+    const [perPage, setPerPage] = useState(10);
     const [title, setTitle] = useState("");
     const [message, setMessage] = useState("");
     const [type, setType] = useState("general");
     const [role, setRole] = useState("customer");
     const [userId, setUserId] = useState("");
     const [error, setError] = useState(null);
-    const [stats, setStats] = useState({ totalCount: 0, unreadCount: 0 });
+    const [stats, setStats] = useState({ totalCount: 0, unreadCount: 0, stats_by_type: {} });
     const [selectedIds, setSelectedIds] = useState([]);
     const [filters, setFilters] = useUrlFilterState({
         keyword: "",
@@ -132,17 +137,36 @@ export default function Notifications() {
                 loai_thong_bao: nextFilters.type,
                 da_doc: nextFilters.readState === "" ? undefined : nextFilters.readState === "read",
                 nguoi_dung_id: nextFilters.userId || undefined,
+                page: currentPage,
+                per_page: perPage,
             });
-            setNotifications(response.data || []);
-            setStats({
-                totalCount: response.total_count || 0,
-                unreadCount: response.unread_count || 0,
-            });
-            setSelectedIds([]);
+
+            if (mounted.current) {
+                setNotifications(response.data || []);
+                setTotalNotifications(response.total || 0);
+                setStats({
+                    totalCount: response.total_count || 0,
+                    unreadCount: response.unread_count || 0,
+                    stats_by_type: response.stats_by_type || {},
+                });
+                setSelectedIds([]);
+            }
         } catch {
-            setError("Không thể tải thông báo.");
+            if (mounted.current) {
+                setError("Không thể tải thông báo.");
+            }
         } finally {
-            setLoading(false);
+            if (mounted.current) {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleRefresh = () => {
+        if (currentPage === 1) {
+            fetchNotifications(filters);
+        } else {
+            setCurrentPage(1);
         }
     };
 
@@ -156,15 +180,18 @@ export default function Notifications() {
     };
 
     useEffect(() => {
-        fetchNotifications();
+        mounted.current = true;
         fetchUsers();
+        return () => {
+            mounted.current = false;
+        };
     }, []);
 
     useEffect(() => {
         fetchNotifications(filters);
-    }, [filters.keyword, filters.readState, filters.role, filters.type, filters.userId]);
+    }, [filters, currentPage]);
 
-    const handleRealtimeNotificationChange = useEffectEvent((payload) => {
+    const handleRealtimeNotificationChange = (payload) => {
         const changedNotification = payload?.notification;
         const deletedNotificationId = payload?.notification_id;
 
@@ -189,24 +216,30 @@ export default function Notifications() {
         }
 
         fetchNotifications(filters);
+    };
+
+    const handlerRef = useRef(handleRealtimeNotificationChange);
+    useEffect(() => {
+        handlerRef.current = handleRealtimeNotificationChange;
     });
 
     useEffect(() => {
         const socket = getSocketClient();
+        const listener = (payload) => handlerRef.current(payload);
 
         socket.connect();
         socket.emit("join_room", "admin.notifications");
-        socket.on("notification.created", handleRealtimeNotificationChange);
-        socket.on("notification.updated", handleRealtimeNotificationChange);
-        socket.on("notification.deleted", handleRealtimeNotificationChange);
+        socket.on("notification.created", listener);
+        socket.on("notification.updated", listener);
+        socket.on("notification.deleted", listener);
 
         return () => {
             socket.emit("leave_room", "admin.notifications");
-            socket.off("notification.created", handleRealtimeNotificationChange);
-            socket.off("notification.updated", handleRealtimeNotificationChange);
-            socket.off("notification.deleted", handleRealtimeNotificationChange);
+            socket.off("notification.created", listener);
+            socket.off("notification.updated", listener);
+            socket.off("notification.deleted", listener);
         };
-    }, [handleRealtimeNotificationChange]);
+    }, []);
 
     const handleCreate = async (event) => {
         event.preventDefault();
@@ -279,6 +312,25 @@ export default function Notifications() {
         );
     };
 
+    const handleBulkMarkAsRead = async () => {
+        if (selectedIds.length === 0) {
+            setError("Hãy chọn ít nhất một thông báo.");
+            return;
+        }
+
+        setActionLoading(true);
+        setError(null);
+
+        try {
+            await Promise.all(selectedIds.map((id) => put(`/api/admin/notifications/${id}/read`, {})));
+            await fetchNotifications(filters);
+        } catch {
+            setError("Không thể cập nhật trạng thái các thông báo đã chọn.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const handleBulkDelete = async () => {
         if (selectedIds.length === 0) {
             setError("Hãy chọn ít nhất một thông báo để xóa.");
@@ -326,6 +378,33 @@ export default function Notifications() {
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
             )}
 
+            <div className={adminStyles.heroHeader}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className={adminStyles.eyebrow}>Trung tâm vận hành</span>
+                        <h1 className={adminStyles.heroTitle}>Quản lý thông báo tập trung</h1>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            className={adminStyles.secondaryButton}
+                        >
+                            <RefreshCcw size={16} className={loading ? "animate-spin mr-2" : "mr-2"} />
+                            Làm mới dữ liệu
+                        </button>
+                        <div className="h-10 w-[1px] bg-slate-200 mx-1"></div>
+                        <div className="flex flex-col items-end">
+                            <span className={adminStyles.heroBadge}>NOTIFICATIONS</span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                                {new Date().toLocaleDateString("vi-VN")}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className={`${adminStyles.statCard} p-5`}>
                     <p className="text-sm text-slate-500">Tổng lượt gửi</p>
@@ -338,9 +417,11 @@ export default function Notifications() {
                     <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">pending reads</p>
                 </div>
                 <div className={`${adminStyles.statCard} p-5`}>
-                    <p className="text-sm text-slate-500">Cảnh báo vận hành</p>
-                    <h4 className="mt-2 text-3xl font-bold text-red-700">{alertCount}</h4>
-                    <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">alert traffic</p>
+                    <p className="text-sm text-slate-500">Hệ thống & Promo</p>
+                    <h4 className="mt-2 text-3xl font-bold text-slate-800">
+                        {(stats.stats_by_type?.system || 0) + (stats.stats_by_type?.promotion || 0)}
+                    </h4>
+                    <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-400">automated traffic</p>
                 </div>
             </div>
 
@@ -402,6 +483,9 @@ export default function Notifications() {
                             </button>
                             <button type="button" disabled={actionLoading} onClick={handleMarkScopeAsRead} className="rounded-[16px] bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60">
                                 {actionLoading ? "Đang xử lý..." : filters.userId ? "Đọc hết tài khoản này" : filters.role ? "Đọc hết nhóm này" : "Đọc hết toàn bộ"}
+                            </button>
+                             <button type="button" disabled={actionLoading || selectedIds.length === 0} onClick={handleBulkMarkAsRead} className="rounded-[16px] border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60">
+                                Đọc đã chọn ({selectedIds.length})
                             </button>
                             <button type="button" disabled={actionLoading || selectedIds.length === 0} onClick={handleBulkDelete} className="rounded-[16px] border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60">
                                 Xóa đã chọn ({selectedIds.length})
@@ -492,6 +576,28 @@ export default function Notifications() {
                             )}
                         </div>
                     )}
+
+                    <div className="mt-8 flex items-center justify-between border-t pt-4">
+                        <div className="text-sm text-slate-500">
+                            Trang {currentPage} / {Math.ceil(totalNotifications / perPage) || 1}
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                disabled={currentPage === 1 || loading}
+                                onClick={() => setCurrentPage((prev) => prev - 1)}
+                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                Trước
+                            </button>
+                            <button
+                                disabled={currentPage * perPage >= totalNotifications || loading}
+                                onClick={() => setCurrentPage((prev) => prev + 1)}
+                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                Sau
+                            </button>
+                        </div>
+                    </div>
                 </section>
 
                 <aside className={`${adminStyles.panel} rounded-[32px] p-6`}>
@@ -515,9 +621,15 @@ export default function Notifications() {
                             />
                         </div>
                         <div>
-                            <label className="mb-2 block text-sm font-medium text-slate-700">Nội dung</label>
+                            <div className="mb-2 flex items-center justify-between">
+                                <label className="text-sm font-medium text-slate-700">Nội dung</label>
+                                <span className={`text-xs ${message.length > 500 ? "text-red-500 font-bold" : "text-slate-400"}`}>
+                                    {message.length}/500
+                                </span>
+                            </div>
                             <textarea
                                 value={message}
+                                maxLength={500}
                                 onChange={(event) => setMessage(event.target.value)}
                                 className="h-32 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
                                 placeholder="Nội dung ngắn, rõ hành động tiếp theo, thời hạn hoặc hướng dẫn cần làm."

@@ -1,23 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../../api/axios';
+import { useSellerSession } from '../../../contexts/SellerSessionContext';
 import './CampaignRegistration.css';
 
-const API_BASE_URL = 'http://localhost:8000/api';
-const SHOP_ID = 1;
-
 const CampaignRegistration = () => {
+    const { selectedShop } = useSellerSession();
     const [campaigns, setCampaigns] = useState([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState(null);
 
     useEffect(() => {
-        fetchCampaigns();
-    }, []);
+        if (selectedShop?.id) {
+            fetchCampaigns();
+        } else {
+            setLoading(false);
+        }
+    }, [selectedShop?.id]);
 
     const fetchCampaigns = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}/campaigns?shop_id=${SHOP_ID}`);
+            const response = await api.get(`/seller/campaigns?shop_id=${selectedShop.id}`);
             if (response.data.success) {
                 setCampaigns(response.data.data);
             }
@@ -29,11 +32,12 @@ const CampaignRegistration = () => {
     };
 
     const handleRegister = async (campaignId) => {
+        if (!selectedShop?.id) return;
         setProcessingId(campaignId);
         try {
-            const response = await axios.post(`${API_BASE_URL}/campaigns/register`, {
+            const response = await api.post('/seller/campaigns/register', {
                 campaign_id: campaignId,
-                shop_id: SHOP_ID
+                shop_id: selectedShop.id
             });
             if (response.data.success) {
                 alert(response.data.message);
@@ -48,13 +52,14 @@ const CampaignRegistration = () => {
     };
 
     const handleUnregister = async (campaignId) => {
+        if (!selectedShop?.id) return;
         if (!window.confirm("Bạn có chắc chắn muốn hủy tham gia chiến dịch này?")) return;
         
         setProcessingId(campaignId);
         try {
-            const response = await axios.post(`${API_BASE_URL}/campaigns/unregister`, {
+            const response = await api.post('/seller/campaigns/unregister', {
                 campaign_id: campaignId,
-                shop_id: SHOP_ID
+                shop_id: selectedShop.id
             });
             if (response.data.success) {
                 alert(response.data.message);

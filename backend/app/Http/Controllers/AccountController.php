@@ -12,8 +12,7 @@ use App\Models\ThongBao;
 use App\Models\DonHang;
 use App\Models\NhatKyTaiChinh;
 use Illuminate\Support\Facades\DB;
-// use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
-use Cloudinary\Cloudinary;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 
 class AccountController extends Controller
@@ -80,7 +79,7 @@ class AccountController extends Controller
 
     /** POST /api/account/profile/avatar  (multipart/form-data: avatar) */
     /** POST /api/account/profile/avatar */
-public function updateAvatar(Request $request)
+    public function updateAvatar(Request $request)
     {
         $request->validate([
             'avatar' => 'required|image|max:2048',
@@ -88,38 +87,19 @@ public function updateAvatar(Request $request)
 
         $u = $this->user();
 
-        // Khởi tạo Cloudinary SDK v2 trực tiếp
-        $cloudinary = new Cloudinary([
-            'cloud' => [
-                'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
-                'api_key'    => env('CLOUDINARY_API_KEY'),
-                'api_secret' => env('CLOUDINARY_API_SECRET'),
-            ],
+        $upload = Cloudinary::uploadApi()->upload($request->file('avatar')->getRealPath(), [
+            'folder' => 'avatars'
         ]);
 
-        // Xoá ảnh cũ nếu có
-        if ($u->anh_dai_dien && $u->cloudinary_public_id) {
-            try {
-                $cloudinary->uploadApi()->destroy($u->cloudinary_public_id);
-            } catch (\Exception $e) {
-                // ignore
-            }
-        }
-
-        // Upload ảnh mới
-        $upload = $cloudinary->uploadApi()->upload(
-            $request->file('avatar')->getRealPath(),
-            ['folder' => 'avatars']
-        );
+        $uploadedFileUrl = $upload['secure_url'];
 
         $u->update([
-            'anh_dai_dien'       => $upload['secure_url'],
-            'cloudinary_public_id' => $upload['public_id'], // nếu có cột này
+            'anh_dai_dien' => $uploadedFileUrl,
         ]);
 
         return response()->json([
             'message'      => 'Cập nhật ảnh thành công',
-            'anh_dai_dien' => $upload['secure_url'],
+            'anh_dai_dien' => $uploadedFileUrl,
         ]);
     }
 
@@ -167,6 +147,9 @@ public function updateAvatar(Request $request)
             'ten_nguoi_nhan'   => 'required|string|max:100',
             'so_dien_thoai'    => 'required|string|max:20',
             'dia_chi_chi_tiet' => 'required|string',
+            'province_id'      => 'required|integer',
+            'district_id'      => 'required|integer',
+            'ward_code'        => 'required|string|max:50',
             'la_mac_dinh'      => 'boolean',
         ]);
 
@@ -185,6 +168,9 @@ public function updateAvatar(Request $request)
             'ten_nguoi_nhan'   => $request->ten_nguoi_nhan,
             'so_dien_thoai'    => $request->so_dien_thoai,
             'dia_chi_chi_tiet' => $request->dia_chi_chi_tiet,
+            'province_id'      => $request->province_id,
+            'district_id'      => $request->district_id,
+            'ward_code'        => $request->ward_code,
             'la_mac_dinh'      => $request->boolean('la_mac_dinh') || $count === 0 ? 1 : 0,
         ]);
 
@@ -202,6 +188,9 @@ public function updateAvatar(Request $request)
             'ten_nguoi_nhan'   => 'required|string|max:100',
             'so_dien_thoai'    => 'required|string|max:20',
             'dia_chi_chi_tiet' => 'required|string',
+            'province_id'      => 'required|integer',
+            'district_id'      => 'required|integer',
+            'ward_code'        => 'required|string|max:50',
             'la_mac_dinh'      => 'boolean',
         ]);
 
@@ -211,7 +200,7 @@ public function updateAvatar(Request $request)
                 ->update(['la_mac_dinh' => 0]);
         }
 
-        $addr->update($request->only('ten_nguoi_nhan', 'so_dien_thoai', 'dia_chi_chi_tiet', 'la_mac_dinh'));
+        $addr->update($request->only('ten_nguoi_nhan', 'so_dien_thoai', 'dia_chi_chi_tiet', 'province_id', 'district_id', 'ward_code', 'la_mac_dinh'));
 
         return response()->json(['message' => 'Cập nhật địa chỉ thành công', 'address' => $addr]);
     }
@@ -447,6 +436,8 @@ public function updateAvatar(Request $request)
             'logo_cua_hang'            => $o->cuaHang?->logo,
             'giao_hang'                => $o->giaHang ? [
                 'trang_thai'         => $o->giaHang->trang_thai,
+                'sub_status'         => $o->giaHang->sub_status,
+                'so_lan_giao_lai'    => $o->giaHang->so_lan_giao_lai,
                 'ma_van_don'         => $o->giaHang->ma_van_don,
                 'ngay_giao_du_kien'  => $o->giaHang->ngay_giao_du_kien,
                 'ngay_giao_thuc_te'  => $o->giaHang->ngay_giao_thuc_te,
