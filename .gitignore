@@ -41,3 +41,21 @@ auth.json
 # General
 .DS_Store
 Thumbs.db
+
+# AI Scratch & Implementation Files
+implement.md
+task.md
+walkthrough.md
+ERRORS.md
+/apply_calls.js
+/best_replace.json
+/campaigns_calls.json
+/chunks.json
+/chunks_raw.txt
+/extract.js
+/my_bad_replace.json
+/recover_script.js
+/recovered_campaigns.json
+/replacement.txt
+/test_api.js
+/*.log
