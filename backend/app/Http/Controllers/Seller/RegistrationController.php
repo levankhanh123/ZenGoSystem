@@ -1,3 +1,4 @@
+<?php
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
@@ -8,11 +9,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class RegistrationController extends Controller
 {
     public function register(Request $request)
     {
+        Log::info('Seller Registration Attempt', $request->all());
+
         $validator = Validator::make($request->all(), [
             'user_id' => ['required', 'integer', 'exists:nguoi_dung,id'],
             'shopName' => ['required', 'string', 'max:150'],
@@ -23,6 +27,7 @@ class RegistrationController extends Controller
         ]);
 
         if ($validator->fails()) {
+            Log::warning('Seller Registration Validation Failed', $validator->errors()->toArray());
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
@@ -39,16 +44,16 @@ class RegistrationController extends Controller
             }
 
             NguoiDung::query()->whereKey($userId)->update([
-                'vai_tro' => 'nguoi_ban',
+                'vai_tro' => 'seller',
                 'updated_at' => Carbon::now(),
             ]);
 
-            $logoPath = null;
+            $logoUrl = null;
             if ($request->hasFile('shopAvatar')) {
-                $file = $request->file('shopAvatar');
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('public/shops', $filename);
-                $logoPath = str_replace('public/', 'storage/', $path);
+                $upload = Cloudinary::uploadApi()->upload($request->file('shopAvatar')->getRealPath(), [
+                    'folder' => 'shops'
+                ]);
+                $logoUrl = $upload['secure_url'];
             }
 
             $existingShop = CuaHang::query()->where('nguoi_ban_id', $userId)->first();
@@ -63,7 +68,9 @@ class RegistrationController extends Controller
                     'dia_chi_lay_hang' => $request->string('address')->toString(),
                     'email' => $request->string('email')->toString(),
                     'so_dien_thoai' => $request->string('phone')->toString(),
-                    'logo' => $logoPath ?? $existingShop?->logo,
+                    'email_shop' => $request->string('email')->toString(), // Thêm cột này
+                    'sdt_shop' => $request->string('phone')->toString(),   // Thêm cột này
+                    'logo' => $logoUrl ?? $existingShop?->logo,
                     'trang_thai' => $shopStatus,
                     'updated_at' => Carbon::now(),
                 ]
@@ -75,6 +82,7 @@ class RegistrationController extends Controller
                 'message' => $existingShop
                     ? 'Shop information updated successfully.'
                     : 'Shop registered successfully! Pending approval.',
+                'details' => 'Created/Updated shop ID: ' . $shop->id,
                 'cua_hang_id' => $shop->id,
             ], $existingShop ? 200 : 201);
         } catch (\Throwable $exception) {
