@@ -1,3 +1,4 @@
+<?php
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
@@ -15,33 +16,33 @@ class SellerVoucherController extends Controller
 
         $shopId = $validated['shop_id'];
 
+        // Lấy ID các chiến dịch mà shop này đã đăng ký
+        $registeredCampaignIds = \App\Models\DangKyChienDich::where('shop_id', $shopId)
+            ->pluck('campaign_id');
+
         $vouchers = Voucher::query()
+            ->where(function ($query) use ($shopId, $registeredCampaignIds) {
+                $query->where('cua_hang_id', $shopId)
+                      ->orWhereIn('campaign_id', $registeredCampaignIds);
+            })
             ->with(['registrations' => function ($query) use ($shopId) {
                 $query->where('shop_id', $shopId);
             }])
             ->orderByDesc('thoi_gian_bat_dau')
             ->get()
-            ->map(function (Voucher $voucher) {
+            ->map(function (Voucher $voucher) use ($shopId) {
+                $voucher->refreshStatus();
                 $registration = $voucher->registrations->first();
-
-                return [
-                    'id' => $voucher->id,
-                    'code' => $voucher->ma_voucher,
-                    'name' => $voucher->ten_voucher,
-                    'type' => $this->mapVoucherType($voucher->loai),
-                    'value' => $this->formatVoucherValue($voucher),
-                    'min_order' => number_format((float) $voucher->gia_tri_don_toi_thieu, 0, ',', '.') . 'đ',
-                    'usage' => (int) ($voucher->so_luong_da_dung ?? 0) . '/' . (int) ($voucher->so_luong_voucher ?? 0),
-                    'status' => $this->mapVoucherStatus($voucher->trang_thai),
-                    'status_code' => $voucher->trang_thai,
-                    'expiry' => optional($voucher->thoi_gian_ket_thuc)?->format('d/m/Y'),
+                
+                // Trả về cả các field raw của model (frontend dùng) 
+                // và các field mapped (nếu cần)
+                return array_merge($voucher->toArray(), [
                     'registration_status' => $registration?->trang_thai,
                     'registration_status_label' => $this->mapRegistrationStatus($registration?->trang_thai),
                     'registered' => (bool) $registration,
-                    'note' => $registration?->ghi_chu_admin ?: $voucher->ghi_chu,
-                ];
-            })
-            ->values();
+                    'is_system_voucher' => is_null($voucher->cua_hang_id),
+                ]);
+            });
 
         return response()->json(['data' => $vouchers]);
     }

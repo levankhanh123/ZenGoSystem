@@ -1,3 +1,4 @@
+<?php
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
@@ -66,6 +67,104 @@ class OrderController extends Controller
             ->values();
 
         return response()->json(['data' => $orders]);
+    }
+
+    public function updateStatus(Request $request, $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'shop_id' => ['required', 'integer', 'exists:cua_hang,id'],
+            'status' => ['required', 'string', 'max:50'],
+            'ly_do_huy' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $order = DonHang::with('chiTietDonHangs')->where('id', $id)->where('cua_hang_id', $validated['shop_id'])->firstOrFail();
+        $oldStatus = $order->trang_thai_don_hang;
+
+        DB::transaction(function () use ($order, $validated, $oldStatus) {
+            $order->trang_thai_don_hang = $validated['status'];
+            
+            if ($validated['status'] === 'da_huy' && !empty($validated['ly_do_huy'])) {
+                $order->ly_do_huy = $validated['ly_do_huy'];
+            }
+
+            // Xử lý khi hủy đơn
+            if ($validated['status'] === 'da_huy') {
+                // 1. Hoàn tồn kho (trừ số lượng tạm giữ)
+                foreach ($order->chiTietDonHangs as $item) {
+                    \App\Models\SanPham::where('id', $item->san_pham_id)
+                        ->decrement('so_luong_tam_giu', $item->so_luong);
+                }
+
+                // 2. Hoàn tiền nếu đã thanh toán
+                if ($order->trang_thai_thanh_toan === 'da_thanh_toan') {
+                    $order->trang_thai_thanh_toan = 'da_hoan_tien';
+                    
+                    $viTien = \App\Models\ViTien::firstOrCreate(
+                        ['nguoi_dung_id' => $order->nguoi_mua_id],
+                        ['so_du' => 0, 'so_du_dong_bang' => 0]
+                    );
+
+                    $viTien->so_du += $order->tong_tien;
+                    $viTien->save();
+
+                    \App\Models\NhatKyTaiChinh::create([
+                        'loai' => 'hoan_tien',
+                        'doi_tuong' => "nguoi_dung:{$order->nguoi_mua_id}",
+                        'noi_dung' => "Hoàn tiền do người bán hủy đơn hàng {$order->ma_don_hang}",
+                        'so_tien' => $order->tong_tien,
+                        'created_at' => now(),
+                    ]);
+                }
+            }
+            
+            $order->save();
+
+            // Nếu chuyển sang Chờ lấy hàng hoặc Đang giao, tự động tạo/cập nhật bản ghi GiaoHang
+            if (in_array($validated['status'], ['cho_lay_hang', 'dang_giao'])) {
+                // Nếu seller bấm "Bàn giao", thường status sẽ là 'cho_lay_hang' 
+                // hoặc 'dang_giao' tùy vào frontend. Chúng ta map cả 2 về trạng thái 
+                // để shipper có thể thấy trong "Đơn trong vùng".
+                $deliveryStatus = 'cho_lay_hang'; 
+                
+                \App\Models\GiaoHang::updateOrCreate(
+                    ['don_hang_id' => $order->id],
+                    [
+                        'trang_thai' => $deliveryStatus,
+                        'cod_thu_ho' => $order->tong_tien, // Cập nhật tiền thu hộ
+                    ]
+                );
+            }
+
+            \App\Models\LichSuTrangThaiDonHang::create([
+                'don_hang_id' => $order->id,
+                'nguoi_cap_nhat_id' => auth()->id(),
+                'trang_thai_cu' => $oldStatus,
+                'trang_thai_moi' => $validated['status'],
+                'ghi_chu' => $validated['ly_do_huy'] ?? 'Seller cập nhật trạng thái',
+            ]);
+        });
+
+        // Nếu hủy đơn, thông báo cho người mua (Buyer) ngoài transaction
+        if ($validated['status'] === 'da_huy') {
+            try {
+                $notification = \App\Models\ThongBao::create([
+                    'nguoi_dung_id'  => $order->nguoi_mua_id,
+                    'tieu_de'        => 'Đơn hàng đã bị hủy',
+                    'noi_dung'       => "Đơn hàng {$order->ma_don_hang} của bạn đã bị người bán hủy với lý do: " . ($validated['ly_do_huy'] ?? 'Hết hàng/Thông tin không hợp lệ.'),
+                    'loai_thong_bao' => 'order',
+                    'da_doc'         => 0,
+                    'created_at'     => now(),
+                ]);
+                
+                app(\App\Services\SocketRelayService::class)->emit('notification.created', [
+                    'notification' => $notification->toArray(),
+                ], ["user.{$order->nguoi_mua_id}"]);
+            } catch (\Exception $e) {
+                // ignore
+            }
+        }
+
+        return response()->json(['message' => 'Cập nhật trạng thái thành công', 'data' => $order]);
     }
 
     private function mapOrderStatus(?string $status): string

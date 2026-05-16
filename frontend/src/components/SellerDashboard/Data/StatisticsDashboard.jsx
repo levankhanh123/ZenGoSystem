@@ -1,8 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../../api/axios';
 import './StatisticsDashboard.css';
 
 const StatisticsDashboard = () => {
   const [dateRange, setDateRange] = useState('Tháng này');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const currentUser = JSON.parse(localStorage.getItem('user'));
+  const shopId = currentUser?.cua_hang?.id || currentUser?.cua_hang_id || 1;
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/seller/statistics/overview', {
+        params: {
+          shop_id: shopId,
+          range: dateRange
+        }
+      });
+      setData(response.data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [dateRange, shopId]);
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  };
+
+  if (loading && !data) {
+    return <div className="statistics-container"><div className="loading-state">Đang tải dữ liệu thống kê...</div></div>;
+  }
+
+  const { metrics, topProducts, lowStock, operational } = data || {};
 
   return (
     <div className="statistics-container">
@@ -27,33 +64,33 @@ const StatisticsDashboard = () => {
       <div className="metrics-grid">
         <div className="metric-card">
           <div className="metric-title">Tổng doanh thu (Gross Revenue)</div>
-          <div className="metric-value highlight">45.500.000đ</div>
-          <div className="metric-trend trend-up">
-            ↑ 12.5% <span>so với kỳ trước</span>
+          <div className="metric-value highlight">{formatPrice(metrics?.revenue?.value || 0)}</div>
+          <div className={`metric-trend ${metrics?.revenue?.isUp ? 'trend-up' : 'trend-down'}`}>
+            {metrics?.revenue?.isUp ? '↑' : '↓'} {Math.abs(metrics?.revenue?.trend || 0)}% <span>so với kỳ trước</span>
           </div>
         </div>
         
         <div className="metric-card">
           <div className="metric-title">Số lượng đơn thành công</div>
-          <div className="metric-value">1,245</div>
-          <div className="metric-trend trend-up">
-            ↑ 5.2% <span>so với kỳ trước</span>
+          <div className="metric-value">{metrics?.orders?.value || 0}</div>
+          <div className={`metric-trend ${metrics?.orders?.isUp ? 'trend-up' : 'trend-down'}`}>
+            {metrics?.orders?.isUp ? '↑' : '↓'} {Math.abs(metrics?.orders?.trend || 0)}% <span>so với kỳ trước</span>
           </div>
         </div>
 
         <div className="metric-card">
           <div className="metric-title">Giá trị TB Đơn (AOV)</div>
-          <div className="metric-value">36.546đ</div>
-          <div className="metric-trend trend-up">
-            ↑ 2.1% <span>so với kỳ trước</span>
+          <div className="metric-value">{formatPrice(metrics?.aov?.value || 0)}</div>
+          <div className={`metric-trend ${metrics?.aov?.isUp ? 'trend-up' : 'trend-down'}`}>
+            {metrics?.aov?.isUp ? '↑' : '↓'} {Math.abs(metrics?.aov?.trend || 0)}% <span>so với kỳ trước</span>
           </div>
         </div>
 
         <div className="metric-card">
           <div className="metric-title">Tỷ lệ chuyển đổi</div>
-          <div className="metric-value">4.2%</div>
-          <div className="metric-trend trend-down">
-            ↓ 0.5% <span>so với kỳ trước</span>
+          <div className="metric-value">{metrics?.conversion?.value || 0}%</div>
+          <div className={`metric-trend ${metrics?.conversion?.isUp ? 'trend-up' : 'trend-down'}`}>
+            {metrics?.conversion?.isUp ? '↑' : '↓'} {Math.abs(metrics?.conversion?.trend || 0)}% <span>so với kỳ trước</span>
           </div>
         </div>
       </div>
@@ -69,30 +106,16 @@ const StatisticsDashboard = () => {
               <span className="panel-subtitle">Theo số lượng</span>
             </div>
             <ul className="item-list">
-              <li className="item-row">
-                <div className="item-rank rank-1">#1</div>
-                <div className="item-info">
-                  <div className="item-name">Áo Thun Tay Lỡ Unisex Form Rộng Phông Nam Nữ</div>
-                  <div className="item-meta">Mã SP: SP001</div>
-                </div>
-                <div className="item-value">458 đã bán</div>
-              </li>
-              <li className="item-row">
-                <div className="item-rank rank-2">#2</div>
-                <div className="item-info">
-                  <div className="item-name">Quần Jean Nam Ống Xuông Cao Cấp</div>
-                  <div className="item-meta">Mã SP: SP042</div>
-                </div>
-                <div className="item-value">312 đã bán</div>
-              </li>
-              <li className="item-row">
-                <div className="item-rank rank-3">#3</div>
-                <div className="item-info">
-                  <div className="item-name">Mũ Lưỡi Trai Thêu Chữ K Thời Trang Mùa Hè</div>
-                  <div className="item-meta">Mã SP: SP015</div>
-                </div>
-                <div className="item-value">195 đã bán</div>
-              </li>
+              {topProducts && topProducts.length > 0 ? topProducts.map((product, index) => (
+                <li className="item-row" key={product.id}>
+                  <div className={`item-rank rank-${index + 1}`}>#{index + 1}</div>
+                  <div className="item-info">
+                    <div className="item-name">{product.ten_san_pham}</div>
+                    <div className="item-meta">Mã SP: {product.sku || 'N/A'}</div>
+                  </div>
+                  <div className="item-value">{product.total_sold} đã bán</div>
+                </li>
+              )) : <li className="item-row">Chưa có dữ liệu sản phẩm bán chạy</li>}
             </ul>
           </div>
 
@@ -102,24 +125,17 @@ const StatisticsDashboard = () => {
               <span className="panel-subtitle">Sắp hết hàng</span>
             </div>
             <ul className="item-list">
-              <li className="item-row">
-                <div className="item-info">
-                  <div className="item-name">Giày Thể Thao Sneaker Nam Cao Cấp</div>
-                  <div className="item-meta">Mã SP: SP088 | Size 42 Trắng</div>
-                </div>
-                <div className="item-value">
-                  <span className="warning-badge">Còn 2 SP</span>
-                </div>
-              </li>
-              <li className="item-row">
-                <div className="item-info">
-                  <div className="item-name">Áo Khoác Nỉ Hoodie Basic Form Rộng</div>
-                  <div className="item-meta">Mã SP: SP102 | Đen XL</div>
-                </div>
-                <div className="item-value">
-                  <span className="warning-badge">Hết hàng</span>
-                </div>
-              </li>
+              {lowStock && lowStock.length > 0 ? lowStock.map(product => (
+                <li className="item-row" key={product.id}>
+                  <div className="item-info">
+                    <div className="item-name">{product.ten_san_pham}</div>
+                    <div className="item-meta">Mã SP: {product.sku || 'N/A'}</div>
+                  </div>
+                  <div className="item-value">
+                    <span className="warning-badge">{product.so_luong_ton > 0 ? `Còn ${product.so_luong_ton} SP` : 'Hết hàng'}</span>
+                  </div>
+                </li>
+              )) : <li className="item-row">Tất cả sản phẩm đều đủ hàng</li>}
             </ul>
           </div>
         </div>
@@ -134,17 +150,17 @@ const StatisticsDashboard = () => {
             <div className="op-metric">
               <div className="op-header">
                 <span className="op-label">Đánh giá trung bình (Toàn shop)</span>
-                <span className="op-value" style={{ color: '#fca120' }}>★ 4.8 / 5.0</span>
+                <span className="op-value" style={{ color: '#fca120' }}>★ {operational?.avgRating || 0} / 5.0</span>
               </div>
               <div className="progress-bar-bg">
-                <div className="progress-bar-fill fill-orange" style={{ width: '96%' }}></div>
+                <div className="progress-bar-fill fill-orange" style={{ width: `${(operational?.avgRating || 0) * 20}%` }}></div>
               </div>
             </div>
 
             <div className="op-metric">
               <div className="op-header">
                 <span className="op-label">Thời gian chuẩn bị hàng TB</span>
-                <span className="op-value">0.8 ngày</span>
+                <span className="op-value">{operational?.prepTime || 0} ngày</span>
               </div>
               <div className="progress-bar-bg">
                 <div className="progress-bar-fill fill-green" style={{ width: '85%' }}></div>
@@ -159,18 +175,18 @@ const StatisticsDashboard = () => {
             <div className="op-metric">
               <div className="op-header">
                 <span className="op-label">Tỷ lệ Hủy/Trả hàng</span>
-                <span className="op-value" style={{ color: '#d93025' }}>3.5%</span>
+                <span className="op-value" style={{ color: '#d93025' }}>{operational?.cancelRate || 0}%</span>
               </div>
               <div className="progress-bar-bg">
-                <div className="progress-bar-fill fill-red" style={{ width: '3.5%' }}></div>
+                <div className="progress-bar-fill fill-red" style={{ width: `${operational?.cancelRate || 0}%` }}></div>
               </div>
               <small style={{ color: '#666', marginTop: '8px', display: 'block' }}>
-                Tổng số 45 đơn bị hủy/trả trong khoảng thời gian này.
+                Tổng số {operational?.totalCancelled || 0} đơn bị hủy/trả trong khoảng thời gian này.
               </small>
             </div>
 
             <div style={{ marginTop: '16px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px', color: '#333' }}>Nguyên nhân phổ biến:</div>
+              <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px', color: '#333' }}>Nguyên nhân phổ biến (Dự kiến):</div>
               <ul className="item-list">
                 <li className="item-row" style={{ padding: '8px 0' }}>
                   <div className="item-info"><span style={{ fontSize: '13px', color: '#666' }}>1. Khách đổi ý (Do vận chuyển lâu)</span></div>
@@ -180,17 +196,11 @@ const StatisticsDashboard = () => {
                   <div className="item-info"><span style={{ fontSize: '13px', color: '#666' }}>2. Sản phẩm bị lỗi kỹ thuật</span></div>
                   <div className="item-value" style={{ fontSize: '13px' }}>35%</div>
                 </li>
-                <li className="item-row" style={{ padding: '8px 0', borderBottom: 'none' }}>
-                  <div className="item-info"><span style={{ fontSize: '13px', color: '#666' }}>3. Khác</span></div>
-                  <div className="item-value" style={{ fontSize: '13px' }}>23%</div>
-                </li>
               </ul>
             </div>
-
           </div>
         </div>
       </div>
-
     </div>
   );
 };

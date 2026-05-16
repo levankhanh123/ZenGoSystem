@@ -73,7 +73,9 @@ const ShopVouchers = () => {
 
     const handleTogglePause = async (id) => {
         try {
-            await api.patch(`/seller/vouchers/${id}/toggle-pause`);
+            await api.patch(`/seller/vouchers/${id}/toggle-pause`, null, {
+                params: { shop_id: selectedShop.id }
+            });
             fetchVouchers();
         } catch (error) {
             alert('Không thể cập nhật trạng thái: ' + (error.response?.data?.message || error.message));
@@ -83,7 +85,9 @@ const ShopVouchers = () => {
     const handleEndEarly = async (id) => {
         if (window.confirm('Bạn có chắc chắn muốn kết thúc sớm voucher này?')) {
             try {
-                await api.patch(`/seller/vouchers/${id}/end-early`);
+                await api.patch(`/seller/vouchers/${id}/end-early`, null, {
+                    params: { shop_id: selectedShop.id }
+                });
                 fetchVouchers();
             } catch (error) {
                 alert('Lỗi: ' + (error.response?.data?.message || error.message));
