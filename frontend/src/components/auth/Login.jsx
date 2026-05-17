@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "../../contexts/Authcontext.jsx";
 import { useCart } from "../../contexts/CartContext.jsx";
-import AuthLayout from "./AuthLayout.jsx";
+import AuthLayout from "./Authlayout.jsx";
 
 /**
  * Login  —  /login

@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import AccountSidebar from "../components/account/Accountsidebar.jsx";
-import ProfileTab     from "../components/account/ProfileTab.jsx";
-import AddressTab     from "../components/account/AddressTab.jsx";
+import ProfileTab     from "../components/account/Profiletab.jsx";
+import AddressTab     from "../components/account/Addresstab.jsx";
 import WalletTab      from "../components/account/Wallettab.jsx";
 import OrderHistoryTab from "../components/account/Orderhistorytab.jsx";
 import NotificationTab from "../components/account/Notificationtab.jsx";

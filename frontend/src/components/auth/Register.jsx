@@ -5,7 +5,7 @@ import {
   AlertCircle, Loader2, CheckCircle
 } from "lucide-react";
 import { useAuth } from "../../contexts/Authcontext.jsx";
-import AuthLayout from "./AuthLayout.jsx";
+import AuthLayout from "./Authlayout.jsx";
 
 /**
  * Register  —  /register
