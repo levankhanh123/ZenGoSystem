@@ -59,6 +59,7 @@ DB_DATABASE=your-aiven-db
 DB_USERNAME=your-aiven-user
 DB_PASSWORD=your-aiven-password
 MYSQL_ATTR_SSL_CA=/etc/secrets/ca.pem
+MYSQL_SSL_VERIFY_SERVER_CERT=false
 
 SESSION_DRIVER=database
 CACHE_STORE=database
