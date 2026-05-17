@@ -4,9 +4,14 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_URL || '*')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
 const io = new Server(server, {
-    cors: { 
-        origin: "*",
+    cors: {
+        origin: allowedOrigins.includes('*') ? '*' : allowedOrigins,
         methods: ["GET", "POST"]
     },
     transports: ['websocket', 'polling']
@@ -29,10 +34,10 @@ io.on('connection', (socket) => {
 
     socket.on('send_message', (data) => {
         const room = String(data.hoi_thoai_id);
-        
+
         // Broadcast to conversation room
         socket.to(room).emit('receive_message', data);
-        
+
         // Also emit to individual user rooms for notifications
         if (Array.isArray(data.members)) {
             data.members.forEach(m => {
@@ -40,7 +45,7 @@ io.on('connection', (socket) => {
                 io.to(userRoom).emit('receive_message', data);
             });
         }
-        
+
         console.log(`[${socket.id}] Message in ${room}`);
     });
 
@@ -53,9 +58,9 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
     console.log(`=============================================`);
     console.log(`   SOCKET SERVER IS RUNNING ON PORT ${PORT}   `);
     console.log(`=============================================`);
-});
+});

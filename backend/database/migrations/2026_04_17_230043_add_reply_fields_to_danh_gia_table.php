@@ -11,9 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('danh_gia')) {
+            return;
+        }
+
         Schema::table('danh_gia', function (Blueprint $table) {
-            $table->longText('noi_dung_phan_hoi')->nullable()->after('noi_dung');
-            $table->datetime('thoi_gian_phan_hoi')->nullable()->after('noi_dung_phan_hoi');
+            if (!Schema::hasColumn('danh_gia', 'noi_dung_phan_hoi')) {
+                $table->longText('noi_dung_phan_hoi')->nullable()->after('noi_dung');
+            }
+            if (!Schema::hasColumn('danh_gia', 'thoi_gian_phan_hoi')) {
+                $table->datetime('thoi_gian_phan_hoi')->nullable()->after('noi_dung_phan_hoi');
+            }
         });
     }
 
@@ -22,8 +30,19 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('danh_gia')) {
+            return;
+        }
+
         Schema::table('danh_gia', function (Blueprint $table) {
-            $table->dropColumn(['noi_dung_phan_hoi', 'thoi_gian_phan_hoi']);
+            $columns = array_filter([
+                Schema::hasColumn('danh_gia', 'noi_dung_phan_hoi') ? 'noi_dung_phan_hoi' : null,
+                Schema::hasColumn('danh_gia', 'thoi_gian_phan_hoi') ? 'thoi_gian_phan_hoi' : null,
+            ]);
+
+            if ($columns !== []) {
+                $table->dropColumn($columns);
+            }
         });
     }
 };

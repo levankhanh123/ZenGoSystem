@@ -1,4 +1,6 @@
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+import { BACKEND_URL } from "../../config";
+
+const apiBaseUrl = BACKEND_URL.replace(/\/$/, "");
 
 function buildUrl(path, params = {}) {
     const searchParams = new URLSearchParams();

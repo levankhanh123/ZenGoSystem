@@ -5,8 +5,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useCallback } from "react";
+import { API_BASE_URL } from "../config";
 
-const BASE = "http://127.0.0.1:8000/api/account";
+const BASE = `${API_BASE_URL}/account`;
+const GHN_BASE = `${API_BASE_URL}/ghn`;
 
 // Lấy token từ localStorage (Sanctum)
 const getHeaders = () => ({
@@ -269,13 +271,13 @@ export function useNotifications() {
 // ─────────────────────────────────────────────────────────────────────────────
 export function useGhn() {
   const fetchProvinces = useCallback(async () => {
-    const data = await apiFetch(`http://127.0.0.1:8000/api/ghn/provinces`);
+    const data = await apiFetch(`${GHN_BASE}/provinces`);
     return data.data || [];
   }, []);
 
   const fetchDistricts = useCallback(async (provinceId) => {
     if (!provinceId) return [];
-    const data = await apiFetch(`http://127.0.0.1:8000/api/ghn/districts`, {
+    const data = await apiFetch(`${GHN_BASE}/districts`, {
       method: "POST",
       body: JSON.stringify({ province_id: parseInt(provinceId) })
     });
@@ -284,7 +286,7 @@ export function useGhn() {
 
   const fetchWards = useCallback(async (districtId) => {
     if (!districtId) return [];
-    const data = await apiFetch(`http://127.0.0.1:8000/api/ghn/wards`, {
+    const data = await apiFetch(`${GHN_BASE}/wards`, {
       method: "POST",
       body: JSON.stringify({ district_id: parseInt(districtId) })
     });

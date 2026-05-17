@@ -1,7 +1,16 @@
 import { io } from "socket.io-client";
+import { SELLER_SOCKET_URL, SOCKET_URL } from "../../config";
 
 let adminSocketClient = null;
 let sellerSocketClient = null;
+
+const noopSocketClient = {
+    connect: () => {},
+    disconnect: () => {},
+    emit: () => {},
+    on: () => {},
+    off: () => {},
+};
 
 function createSocketClient(url) {
     return io(url, {
@@ -11,24 +20,17 @@ function createSocketClient(url) {
 }
 
 function resolveAdminSocketUrl() {
-    if (import.meta.env.VITE_SOCKET_SERVER_URL) {
-        return import.meta.env.VITE_SOCKET_SERVER_URL;
-    }
-
-    return `${window.location.protocol}//${window.location.hostname}:3001`;
+    return SOCKET_URL;
 }
 
 function resolveSellerSocketUrl() {
-    if (import.meta.env.VITE_SELLER_SOCKET_URL) {
-        return import.meta.env.VITE_SELLER_SOCKET_URL;
-    }
-
-    return resolveAdminSocketUrl();
+    return SELLER_SOCKET_URL || resolveAdminSocketUrl();
 }
 
 export function getSocketClient() {
     if (!adminSocketClient) {
-        adminSocketClient = createSocketClient(resolveAdminSocketUrl());
+        const url = resolveAdminSocketUrl();
+        adminSocketClient = url ? createSocketClient(url) : noopSocketClient;
     }
 
     return adminSocketClient;
@@ -36,7 +38,8 @@ export function getSocketClient() {
 
 export function getSellerSocketClient() {
     if (!sellerSocketClient) {
-        sellerSocketClient = createSocketClient(resolveSellerSocketUrl());
+        const url = resolveSellerSocketUrl();
+        sellerSocketClient = url ? createSocketClient(url) : noopSocketClient;
     }
 
     return sellerSocketClient;

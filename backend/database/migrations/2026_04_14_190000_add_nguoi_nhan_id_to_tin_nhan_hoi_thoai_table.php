@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (!Schema::hasTable('tin_nhan_hoi_thoai')) {
+            return;
+        }
+
         if (Schema::hasColumn('tin_nhan_hoi_thoai', 'nguoi_nhan_id')) {
             return;
         }
@@ -21,6 +25,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasTable('tin_nhan_hoi_thoai')) {
+            return;
+        }
+
         if (!Schema::hasColumn('tin_nhan_hoi_thoai', 'nguoi_nhan_id')) {
             return;
         }

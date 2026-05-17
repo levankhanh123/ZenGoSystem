@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('cua_hang')) {
+            return;
+        }
+
         Schema::table('cua_hang', function (Blueprint $table) {
             if (!Schema::hasColumn('cua_hang', 'email_shop')) {
                 $table->string('email_shop', 150)->nullable()->after('ten_cua_hang');
@@ -26,8 +30,19 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('cua_hang')) {
+            return;
+        }
+
         Schema::table('cua_hang', function (Blueprint $table) {
-            $table->dropColumn(['email_shop', 'sdt_shop']);
+            $columns = array_filter([
+                Schema::hasColumn('cua_hang', 'email_shop') ? 'email_shop' : null,
+                Schema::hasColumn('cua_hang', 'sdt_shop') ? 'sdt_shop' : null,
+            ]);
+
+            if ($columns !== []) {
+                $table->dropColumn($columns);
+            }
         });
     }
 };

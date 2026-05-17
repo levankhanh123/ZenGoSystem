@@ -1,4 +1,5 @@
 import ApiService from "./api";
+import { assetUrl } from "../config";
 
 // ================= MAP DATA =================
 function mapProduct(p) {
@@ -7,7 +8,7 @@ function mapProduct(p) {
     name: p.ten_san_pham,
     price: Number(p.gia),
     originalPrice: null,
-    image: `http://127.0.0.1:8000/storage/${p.hinh_dai_dien}`,
+    image: assetUrl(p.hinh_dai_dien),
     category: p.danh_muc_id,
     rating: 4.5,
     sold: 100,

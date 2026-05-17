@@ -1,11 +1,10 @@
 // src/api/axiosConfig.js
 import axios from 'axios';
 import { message } from 'antd';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { API_BASE_URL } from '../config';
 
 const axiosInstance = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   timeout: 10000,
 });
 

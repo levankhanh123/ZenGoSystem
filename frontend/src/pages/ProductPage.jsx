@@ -9,8 +9,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { API_BASE_URL } from "../config";
 
-const API_URL = "http://127.0.0.1:8000/api";
+const API_URL = API_BASE_URL;
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');

@@ -1,7 +1,16 @@
 <?php
 $mysqli = mysqli_init();
-$mysqli->ssl_set(null, null, __DIR__ . '/ca-cert.pem', null, null);
-$mysqli->real_connect('gateway01.ap-southeast-1.prod.aws.tidbcloud.com', '4SRakF67TEEOktA.root', '4w9t56jdGUYMCcs0', 'zengo_system', 4000, null, MYSQLI_CLIENT_SSL);
+$sslCa = getenv('MYSQL_ATTR_SSL_CA') ?: (__DIR__ . '/ca-cert.pem');
+$mysqli->ssl_set(null, null, $sslCa, null, null);
+$mysqli->real_connect(
+    getenv('DB_HOST') ?: '127.0.0.1',
+    getenv('DB_USERNAME') ?: 'root',
+    getenv('DB_PASSWORD') ?: '',
+    getenv('DB_DATABASE') ?: 'zengo',
+    (int) (getenv('DB_PORT') ?: 3306),
+    null,
+    MYSQLI_CLIENT_SSL
+);
 if ($mysqli->connect_error) {
     die('Connect Error (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error);
 }

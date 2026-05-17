@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('voucher') || Schema::hasColumn('voucher', 'kieu_giam_gia')) {
+            return;
+        }
+
         Schema::table('voucher', function (Blueprint $column) {
             $column->string('kieu_giam_gia', 20)->default('so_tien')->after('loai');
         });
@@ -21,6 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('voucher') || !Schema::hasColumn('voucher', 'kieu_giam_gia')) {
+            return;
+        }
+
         Schema::table('voucher', function (Blueprint $column) {
             $column->dropColumn('kieu_giam_gia');
         });

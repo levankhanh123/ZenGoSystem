@@ -24,12 +24,12 @@ import WithdrawalRequests from './components/SellerDashboard/Finance/WithdrawalR
 import RevenueDashboard from './components/SellerDashboard/Finance/RevenueDashboard';
 import StatisticsDashboard from './components/SellerDashboard/Data/StatisticsDashboard';
 import './App.css'
+import { SOCKET_URL } from './config'
 
 // Chỉ khởi tạo socket nếu có URL, tránh lỗi runtime
-const SOCKET_URL = "http://localhost:3001";
-const socket = io(SOCKET_URL, {
+const socket = SOCKET_URL ? io(SOCKET_URL, {
     autoConnect: false // Chỉ connect khi cần
-});
+}) : null;
 
 // Helper function để chuyển đổi từ format {component: ...} sang {element: <Component />}
 const transformRoutes = (routes) => {
@@ -79,6 +79,10 @@ function BuyerRoutes() {
 
 function AppContents() {
     useEffect(() => {
+        if (!socket) {
+            return undefined;
+        }
+
         socket.connect();
         
         const handleNotification = (data) => {
