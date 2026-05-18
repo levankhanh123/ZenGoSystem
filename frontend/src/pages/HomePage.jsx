@@ -1,13 +1,13 @@
-import HeroBanner from "../components/home/Herobanner.jsx";
-import TopProducts from "../components/home/Topproducts.jsx";
-import TopShops from "../components/home/TopShop.jsx";
-import VoucherTeaser from "../components/home/Voucherteaser.jsx";
+import HeroBanner      from "../components/home/Herobanner.jsx";
+import WelcomeSection  from "../components/home/Welcomesection.jsx";
+import TopProducts     from "../components/home/Topproducts.jsx";
+import TopShops   from "../components/home/TopShop.jsx";
 
 export default function HomePage() {
   return (
-    <div className="bg-[#f5f5f5]">
+    <div className="animate-fade-in">
       <HeroBanner />
-      <VoucherTeaser />
+      <WelcomeSection />
       <TopProducts />
       <TopShops />
     </div>

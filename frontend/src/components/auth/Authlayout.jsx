@@ -2,35 +2,115 @@ import { Link } from "react-router-dom";
 
 export default function AuthLayout({ children, title, subtitle, switchText, switchLink, switchLabel }) {
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
-      <header className="bg-white shadow-sm">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
-          <Link to="/" className="text-3xl font-black text-[#f7452f]">
-            ZenGo
-          </Link>
-          <Link to="/" className="text-sm font-semibold text-slate-600 transition hover:text-[#f7452f]">
-            Trang chủ
+    <div className="min-h-screen flex" style={{ fontFamily: "'Nunito', sans-serif" }}>
+
+      {/* ── Left: Branding panel ── */}
+      <div
+        className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12 relative overflow-hidden"
+        style={{ background: "linear-gradient(145deg, #c0114d 0%, #e8175d 45%, #ff6b35 100%)" }}
+      >
+        {/* Decorative blobs */}
+        <Blob style={{ width:320, height:320, top:-80, right:-80, opacity:0.15 }} />
+        <Blob style={{ width:200, height:200, bottom:60, left:-60, opacity:0.12 }} />
+        <Blob style={{ width:150, height:150, top:"40%", left:"30%", opacity:0.08 }} />
+
+        {/* Stars */}
+        {[
+          { s:18, t:"12%", l:"8%",  r:20  },
+          { s:12, t:"65%", l:"5%",  r:-10 },
+          { s:22, t:"25%", l:"55%", r:0   },
+          { s:14, t:"80%", l:"60%", r:30  },
+          { s:10, t:"45%", l:"80%", r:-5  },
+        ].map((st, i) => (
+          <StarSVG key={i} size={st.s} top={st.t} left={st.l} rotate={st.r} />
+        ))}
+
+        {/* Logo */}
+        <div className="relative z-10">
+          <Link to="/" className="inline-block">
+            <span
+              className="font-black text-white tracking-tight"
+              style={{ fontSize: "2.2rem", letterSpacing: "-0.03em" }}
+            >
+              zen<span className="italic">G</span>o
+            </span>
           </Link>
         </div>
-      </header>
 
-      <main className="flex min-h-[calc(100vh-64px)] items-center justify-center bg-[#f7452f] px-4 py-10">
-        <section className="w-full max-w-md rounded-sm bg-white p-6 shadow-xl md:p-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-black text-slate-950">{title}</h1>
-            {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+        {/* Main copy */}
+        <div className="relative z-10 flex-1 flex flex-col justify-center">
+          <h2 className="text-4xl font-black text-white leading-tight mb-5">
+            Mua nhanh,<br />
+            <span className="text-yellow-300">giá tốt.</span>
+          </h2>
+        </div>
+
+        {/* Feature pills */}
+        <div className="relative z-10 flex flex-wrap gap-2">
+          {["Freeship","Voucher","ZaloPay","Shop uy tín"].map(f => (
+            <span key={f}
+                  className="bg-white/15 backdrop-blur-sm border border-white/25
+                             text-white text-xs font-bold px-3 py-1.5 rounded-full">
+              {f}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Right: Form panel ── */}
+      <div className="flex-1 flex flex-col justify-center items-center
+                      px-6 py-12 bg-[#fdf5f0] overflow-y-auto">
+
+        {/* Mobile logo */}
+        <div className="lg:hidden mb-8 text-center">
+          <Link to="/">
+            <span className="font-black text-[#e8175d] tracking-tight"
+                  style={{ fontSize:"2rem", letterSpacing:"-0.03em" }}>
+              zen<span className="italic">G</span>o
+            </span>
+          </Link>
+        </div>
+
+        {/* Form card */}
+        <div className="w-full max-w-md">
+          {/* Title */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-black text-gray-900">{title}</h1>
+            {subtitle && <p className="text-gray-500 text-sm mt-1">{subtitle}</p>}
           </div>
+
+          {/* Slot for form */}
           {children}
+
+          {/* Switch link */}
           {switchText && (
-            <p className="mt-5 text-center text-sm text-slate-500">
+            <p className="text-center text-sm text-gray-500 mt-6">
               {switchText}{" "}
-              <Link to={switchLink} className="font-bold text-[#f7452f] hover:underline">
+              <Link to={switchLink}
+                    className="text-[#e8175d] font-extrabold hover:underline transition-colors">
                 {switchLabel}
               </Link>
             </p>
           )}
-        </section>
-      </main>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Decorative helpers ─────────────────────────────────── */
+function Blob({ style }) {
+  return (
+    <div className="absolute rounded-full bg-white pointer-events-none" style={style} />
+  );
+}
+function StarSVG({ size, top, left, rotate }) {
+  return (
+    <div className="absolute pointer-events-none opacity-50"
+         style={{ top, left, transform:`rotate(${rotate}deg)` }}>
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="white">
+        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+      </svg>
     </div>
   );
 }
